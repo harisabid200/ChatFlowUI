@@ -36,21 +36,17 @@ docker logs chatflowui
 Or with docker-compose:
 
 ```bash
-curl -O https://raw.githubusercontent.com/yourorg/chatflowui/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/harisabid200/ChatFlowUI/main/docker-compose.yml
 docker-compose up -d
 docker-compose logs chatflowui
 ```
 
-### NPM
-
-```bash
-npm install -g chatflowui
-chatflowui start
+docker-compose logs chatflowui
 ```
 
 ## First Run
 
-1. Open `http://your-server:7861` in your browser
+1. Open `http://<your-server-ip>:7861` in your browser
 2. Login with the credentials shown in the terminal
 3. Change your password when prompted
 4. Create your first chatbot
@@ -110,7 +106,7 @@ Add this to your website before `</body>`:
     w['ChatFlowUI']=o;w[o]=w[o]||function(){(w[o].q=w[o].q||[]).push(arguments)};
     js=d.createElement(s);fjs=d.getElementsByTagName(s)[0];
     js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);
-  }(window,document,'script','chatflowui','https://your-server:7861/widget/widget.js'));
+  }(window,document,'script','chatflowui','http://<your-server-ip>:7861/widget/widget.js'));
   
   chatflowui('init', { chatbotId: 'your-chatbot-id' });
 </script>

@@ -134,8 +134,9 @@ async function bootstrap() {
         console.log('='.repeat(60));
         console.log(`✅ ChatFlowUI started successfully!`);
         console.log('='.repeat(60));
-        console.log(`   Admin Dashboard: http://${config.host === '0.0.0.0' ? 'localhost' : config.host}:${config.port}`);
-        console.log(`   API: http://${config.host === '0.0.0.0' ? 'localhost' : config.host}:${config.port}/api`);
+        const displayHost = config.host === '0.0.0.0' ? '<your-server-ip>' : config.host;
+        console.log(`   Admin Dashboard: http://${displayHost}:${config.port}`);
+        console.log(`   API: http://${displayHost}:${config.port}/api`);
         console.log('='.repeat(60));
 
         if (isFirstRun) {
