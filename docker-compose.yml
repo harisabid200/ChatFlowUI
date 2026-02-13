@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  app:
+    # Use the image if available, or build from current directory
+    # image: chatflowui/chatflowui:latest
+    build: .
+    container_name: chatflowui
+    restart: unless-stopped
+    ports:
+      - "7861:7861"
+    volumes:
+      # Persist data
+      - chatflowui_data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=7861
+      - HOST=0.0.0.0
+      # - JWT_SECRET=change_me_in_production_to_a_long_random_string
+      # - ADMIN_USERNAME=admin
+      # - ADMIN_PASSWORD=change_me
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7861/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - chatflowui_network
+
+volumes:
+  chatflowui_data:
+
+
+networks:
+  chatflowui_network:
+    driver: bridge

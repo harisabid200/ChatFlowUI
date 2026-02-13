@@ -1,0 +1,52 @@
+{
+  "name": "chatflowui",
+  "version": "1.0.0",
+  "description": "Self-hosted premium chatbot widget for n8n",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/chatflowui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/chatflowui/issues"
+  },
+  "homepage": "https://github.com/yourusername/chatflowui#readme",
+  "workspaces": [
+    "server",
+    "admin",
+    "widget"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:admin\"",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:admin": "npm run dev --workspace=admin",
+    "dev:widget": "npm run dev --workspace=widget",
+    "build": "npm run build --workspaces",
+    "build:server": "npm run build --workspace=server",
+    "build:admin": "npm run build --workspace=admin",
+    "build:widget": "npm run build --workspace=widget",
+    "start": "npm run start --workspace=server",
+    "setup": "node scripts/setup.js",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "keywords": [
+    "chatbot",
+    "widget",
+    "n8n",
+    "self-hosted",
+    "chat",
+    "websocket",
+    "real-time",
+    "webhook"
+  ],
+  "author": "Your Name or Organization",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
