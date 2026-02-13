@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
-[![Docker](https://img.shields.io/badge/docker-ready-blue)](https://hub.docker.com/r/chatflowui/chatflowui)
+[![Docker](https://img.shields.io/badge/docker-ready-blue)](https://hub.docker.com/r/harisabid/chatflowui)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 A self-hosted, premium chatbot widget system for n8n. Design beautiful chat widgets, connect them to your n8n workflows, and embed them on any website.
@@ -27,7 +27,7 @@ docker run -d \
   --name chatflowui \
   -p 7861:7861 \
   -v chatflowui_data:/app/data \
-  chatflowui/chatflowui:latest
+  harisabid/chatflowui:latest
 
 # View auto-generated credentials
 docker logs chatflowui

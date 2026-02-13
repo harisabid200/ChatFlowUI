@@ -26,7 +26,6 @@
     "build:admin": "npm run build --workspace=admin",
     "build:widget": "npm run build --workspace=widget",
     "start": "npm run start --workspace=server",
-    "setup": "node scripts/setup.js",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
   },
