@@ -26,6 +26,7 @@ A self-hosted, premium chatbot widget system for n8n. Design beautiful chat widg
 docker run -d \
   --name chatflowui \
   -p 7861:7861 \
+  -e BASE_PATH=/7861/ \
   -v chatflowui_data:/app/data \
   harisabid/chatflowui:latest
 
