@@ -4,6 +4,7 @@ import { Palette, Copy, Trash2, Loader2, Edit3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { themesApi, Theme } from '../api';
 import Layout from '../components/Layout';
+import { createPath } from '../utils/navigation';
 
 export default function Themes() {
     const queryClient = useQueryClient();
@@ -183,7 +184,7 @@ function ThemeCard({
                 <div className="flex items-center gap-1">
                     {!theme.isPreset && (
                         <button
-                            onClick={() => navigate(`/themes/${theme.id}/edit`)}
+                            onClick={() => navigate(createPath(`/themes/${theme.id}/edit`))}
                             className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition"
                             title="Edit"
                         >

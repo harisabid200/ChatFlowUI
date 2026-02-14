@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { MessageSquare, Loader2 } from 'lucide-react';
 import { authApi } from '../api';
 import { useAuthStore } from '../stores/auth';
+import { createPath } from '../utils/navigation';
 
 export default function ChangePassword() {
     const navigate = useNavigate();
@@ -36,7 +37,7 @@ export default function ChangePassword() {
         try {
             await authApi.changePassword(currentPassword, newPassword);
             updateUser({ mustChangePassword: false });
-            navigate('/');
+            navigate(createPath('/'));
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to change password');
         } finally {

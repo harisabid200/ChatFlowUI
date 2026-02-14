@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { MessageSquare, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { authApi } from '../api';
 import { useAuthStore } from '../stores/auth';
+import { createPath } from '../utils/navigation';
 
 export default function Login() {
     const navigate = useNavigate();
@@ -24,9 +25,9 @@ export default function Login() {
             setAuth(token, user);
 
             if (user.mustChangePassword) {
-                navigate('/change-password');
+                navigate(createPath('/change-password'));
             } else {
-                navigate('/');
+                navigate(createPath('/'));
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Login failed');

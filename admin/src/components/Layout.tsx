@@ -4,6 +4,7 @@ import { MessageSquare, LayoutDashboard, Palette, LogOut, Settings } from 'lucid
 import { useAuthStore } from '../stores/auth';
 import { authApi } from '../api';
 import clsx from 'clsx';
+import { createPath } from '../utils/navigation';
 
 interface LayoutProps {
     children: ReactNode;
@@ -21,7 +22,7 @@ export default function Layout({ children }: LayoutProps) {
             // Ignore errors
         }
         logout();
-        navigate('/login');
+        navigate(createPath('/login'));
     };
 
     const navItems = [

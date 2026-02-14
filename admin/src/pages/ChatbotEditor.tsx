@@ -6,6 +6,7 @@ import { chatbotsApi, themesApi, Chatbot, Theme } from '../api';
 import Layout from '../components/Layout';
 import ImageCropper from '../components/ImageCropper';
 import TestChat from '../components/TestChat';
+import { createPath } from '../utils/navigation';
 
 type FormData = Omit<Chatbot, 'id' | 'createdAt' | 'updatedAt'>;
 
@@ -89,7 +90,7 @@ export default function ChatbotEditor() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['chatbots'] });
-            navigate('/');
+            navigate(createPath('/'));
         },
     });
 
@@ -135,7 +136,7 @@ export default function ChatbotEditor() {
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-8">
                     <button
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate(createPath('/'))}
                         className="p-2 hover:bg-gray-100 rounded-lg transition"
                     >
                         <ArrowLeft className="w-5 h-5" />
