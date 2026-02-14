@@ -161,6 +161,8 @@ async function seedAdminUser() {
     const existingUser = result.length > 0 && result[0].values.length > 0;
 
     if (!existingUser) {
+        console.log(`🔐 Creating admin user with password from config...`);
+        console.log(`   Password length: ${config.adminPassword.length} characters`);
         const passwordHash = await bcrypt.hash(config.adminPassword, 12);
         db.run(
             `INSERT INTO users (username, password_hash, must_change_password) VALUES (?, ?, 1)`,
@@ -168,6 +170,8 @@ async function seedAdminUser() {
         );
         saveDatabase();
         console.log('✅ Admin user created');
+    } else {
+        console.log('ℹ️  Admin user already exists, skipping creation');
     }
 }
 

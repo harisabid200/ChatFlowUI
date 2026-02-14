@@ -34,7 +34,8 @@ if (existsSync(credentialsPath)) {
 
 // Generate credentials if not exists
 function generatePassword(length = 12): string {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
+    // Using only alphanumeric to avoid terminal copy-paste issues
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     const randomBytes = crypto.randomBytes(length);
     let password = '';
     for (let i = 0; i < length; i++) {

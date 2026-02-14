@@ -35,7 +35,11 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
             return;
         }
 
+        console.log(`🔍 Login attempt for user: ${username}`);
+        console.log(`   Password length received: ${password.length}`);
         const passwordValid = await bcrypt.compare(password, user.password_hash);
+        console.log(`   Password valid: ${passwordValid}`);
+
         if (!passwordValid) {
             res.status(401).json({ error: 'Invalid credentials' });
             return;
