@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/auth';
 import Login from './pages/Login';
 import ChangePassword from './pages/ChangePassword';
@@ -10,13 +10,16 @@ import ThemeEditor from './pages/ThemeEditor';
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, user } = useAuthStore();
+    const location = useLocation();
 
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
     }
 
     // Force password change if needed
-    if (user?.mustChangePassword && window.location.pathname !== '/change-password') {
+    // Use location.pathname instead of window.location.pathname
+    // because location.pathname from useLocation() already accounts for basename
+    if (user?.mustChangePassword && location.pathname !== '/change-password') {
         return <Navigate to="/change-password" replace />;
     }
 
