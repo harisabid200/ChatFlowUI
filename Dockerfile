@@ -63,9 +63,16 @@ USER nodejs
 # Expose port
 EXPOSE 7861
 
+# Copy entrypoint script for runtime base path configuration
+COPY --chown=nodejs:nodejs entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 # Health check - increased start-period to allow for database initialization
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:7861/health || exit 1
+
+# Set entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Start server
 CMD ["node", "server/dist/index.js"]
