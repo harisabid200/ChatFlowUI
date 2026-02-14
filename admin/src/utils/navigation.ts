@@ -1,6 +1,7 @@
 // Navigation helper to respect BASE_PATH configuration
 export const getBasePath = (): string => {
-    const basePath = (window as any).__BASE_PATH__ || '/';
+    // Safely access window.__BASE_PATH__ with proper fallback
+    const basePath = (typeof window !== 'undefined' && (window as any).__BASE_PATH__) || '/';
     // Remove trailing slash for consistency
     return basePath.endsWith('/') && basePath !== '/' ? basePath.slice(0, -1) : basePath;
 };

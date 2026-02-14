@@ -99,10 +99,13 @@ export const authApi = {
 
     logout: () => api.post<{ success: boolean }>('/auth/logout'),
 
-    me: () => api.get<{ id: number; username: string; mustChangePassword: boolean }>('/auth/me'),
-
     changePassword: (currentPassword: string, newPassword: string) =>
-        api.post<{ success: boolean }>('/auth/change-password', { currentPassword, newPassword }),
+        api.post<{ success: boolean }>('/auth/change-password', {
+            currentPassword,
+            newPassword,
+        }),
+
+    me: () => api.get<{ id: number; username: string; mustChangePassword: boolean }>('/auth/me'),
 };
 
 // Chatbots API
