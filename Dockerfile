@@ -23,6 +23,9 @@ RUN npm run build
 # Production stage
 FROM node:20-alpine AS production
 
+# Install wget for healthcheck
+RUN apk add --no-cache wget
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
   adduser -S nodejs -u 1001 -G nodejs
@@ -60,8 +63,8 @@ USER nodejs
 # Expose port
 EXPOSE 7861
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+# Health check - increased start-period to allow for database initialization
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:7861/health || exit 1
 
 # Start server

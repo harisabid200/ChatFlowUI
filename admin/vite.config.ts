@@ -4,6 +4,7 @@ import { resolve } from 'path';
 
 export default defineConfig({
     plugins: [react()],
+    base: '/', // Ensure assets load from root, not absolute URLs
     resolve: {
         alias: {
             '@': resolve(__dirname, './src'),
