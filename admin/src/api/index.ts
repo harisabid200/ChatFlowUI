@@ -1,6 +1,14 @@
 import { useAuthStore } from '../stores/auth';
 
-const API_BASE = '/api';
+// Get API base path from window.__BASE_PATH__ (set at runtime)
+const getApiBase = () => {
+    const basePath = (window as any).__BASE_PATH__ || '/';
+    // Remove trailing slash if present, then add /api
+    const cleanPath = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
+    return `${cleanPath}/api`;
+};
+
+const API_BASE = getApiBase();
 
 interface ApiError {
     error: string;
