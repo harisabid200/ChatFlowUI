@@ -6,7 +6,7 @@ import { chatbotsApi, themesApi, Chatbot, Theme } from '../api';
 import Layout from '../components/Layout';
 import ImageCropper from '../components/ImageCropper';
 import TestChat from '../components/TestChat';
-import { createPath } from '../utils/navigation';
+
 
 type FormData = Omit<Chatbot, 'id' | 'createdAt' | 'updatedAt'>;
 
@@ -90,15 +90,9 @@ export default function ChatbotEditor() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['chatbots'] });
-            navigate(createPath('/'));
+            navigate('/');
         },
     });
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        saveMutation.mutate(formData);
-    };
-
     const addOrigin = () => {
         setFormData((prev) => ({
             ...prev,
@@ -116,27 +110,22 @@ export default function ChatbotEditor() {
     const updateOrigin = (index: number, value: string) => {
         setFormData((prev) => ({
             ...prev,
-            allowedOrigins: prev.allowedOrigins.map((o, i) => (i === index ? value : o)),
+            allowedOrigins: prev.allowedOrigins.map((origin, i) => (i === index ? value : origin)),
         }));
     };
 
-    if (isLoading && !isNew) {
-        return (
-            <Layout>
-                <div className="flex items-center justify-center py-20">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
-                </div>
-            </Layout>
-        );
-    }
-
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        saveMutation.mutate(formData);
+    };
+    // ... (omitted lines)
     return (
         <Layout>
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-8">
                     <button
-                        onClick={() => navigate(createPath('/'))}
+                        onClick={() => navigate('/')}
                         className="p-2 hover:bg-gray-100 rounded-lg transition"
                     >
                         <ArrowLeft className="w-5 h-5" />

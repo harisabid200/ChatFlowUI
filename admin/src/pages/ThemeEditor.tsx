@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Save, Loader2, RotateCcw } from 'lucide-react';
 import { themesApi, ThemeConfig } from '../api';
 import Layout from '../components/Layout';
-import { createPath } from '../utils/navigation';
+
 
 // ── SVG Icons (matching the actual widget) ──
 const widgetIcons = {
@@ -389,7 +389,7 @@ export default function ThemeEditor() {
         mutationFn: (data: ThemeConfig) => themesApi.update(id!, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['themes'] });
-            navigate(createPath('/themes'));
+            navigate('/themes');
         },
     });
 
@@ -442,7 +442,7 @@ export default function ThemeEditor() {
             <Layout>
                 <div className="max-w-4xl mx-auto text-center py-20">
                     <p className="text-gray-600 mb-4">Preset themes cannot be edited. Duplicate it first to create a custom version.</p>
-                    <button onClick={() => navigate(createPath('/themes'))} className="text-primary-600 hover:underline">← Back to Themes</button>
+                    <button onClick={() => navigate('/themes')} className="text-primary-600 hover:underline">← Back to Themes</button>
                 </div>
             </Layout>
         );
@@ -454,7 +454,7 @@ export default function ThemeEditor() {
                 {/* Header Bar */}
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => navigate(createPath('/themes'))} className="p-2 hover:bg-gray-100 rounded-lg transition">
+                        <button onClick={() => navigate('/themes')} className="p-2 hover:bg-gray-100 rounded-lg transition">
                             <ArrowLeft className="w-5 h-5" />
                         </button>
                         <div>

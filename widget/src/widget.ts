@@ -549,13 +549,9 @@ export class ChatWidget {
         const content = parseMarkdown(message.content);
         const showTimestamp = this.config?.theme.features.showTimestamps ?? true;
 
-        // Get initials for avatars
-        const botInitial = this.config?.settings.headerTitle?.charAt(0) || 'B';
-        const userInitial = 'U';
-
         wrapper.innerHTML = `
-            ${isBot ? `<div class="cfui-message-avatar cfui-bot-avatar">${botInitial}</div>` : ''}
-            ${isUser ? `<div class="cfui-message-avatar cfui-user-avatar">${userInitial}</div>` : ''}
+            ${isBot ? `<div class="cfui-message-avatar cfui-bot-avatar">${icons.bot}</div>` : ''}
+            ${isUser ? `<div class="cfui-message-avatar cfui-user-avatar">${icons.user}</div>` : ''}
             <div class="cfui-message-content">
                 <div class="cfui-message cfui-message-${message.type}">${content}</div>
                 ${showTimestamp ? `<div class="cfui-timestamp">${formatTime(message.timestamp)}</div>` : ''}
@@ -578,13 +574,12 @@ export class ChatWidget {
         if (!this.config?.theme.features.typingIndicator) return;
 
         this.isTyping = true;
-        const botInitial = this.config?.settings.headerTitle?.charAt(0) || 'B';
 
         const wrapper = document.createElement('div');
         wrapper.className = 'cfui-typing-wrapper';
         wrapper.id = 'cfui-typing-indicator';
         wrapper.innerHTML = `
-            <div class="cfui-message-avatar cfui-bot-avatar">${botInitial}</div>
+            <div class="cfui-message-avatar cfui-bot-avatar">${icons.bot}</div>
             <div class="cfui-typing">
                 <div class="cfui-typing-dot"></div>
                 <div class="cfui-typing-dot"></div>

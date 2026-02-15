@@ -33,8 +33,24 @@ export class SocketClient {
     connect(): void {
         if (this.socket?.connected) return;
 
-        this.socket = io(this.baseUrl, {
-            path: '/socket.io',
+        // Parse the base URL to correctly handle subpaths (e.g. /7861/)
+        // If baseUrl is "https://domain.com/7861", we want the socket path to be "/7861/socket.io"
+        // NOT "/socket.io" (default) which would go to root
+        let socketPath = '/socket.io';
+        let connectionUrl = this.baseUrl;
+
+        try {
+            const url = new URL(this.baseUrl);
+            const path = url.pathname.replace(/\/$/, ''); // Remove trailing slash
+            socketPath = `${path}/socket.io`;
+            connectionUrl = url.origin; // Connect to origin, let path handle the routing
+        } catch (e) {
+            // Fallback to default behavior if URL parsing fails
+            console.warn('[ChatFlowUI] Failed to parse baseUrl, using default socket path');
+        }
+
+        this.socket = io(connectionUrl, {
+            path: socketPath,
             transports: ['websocket', 'polling'],
             reconnection: true,
             reconnectionAttempts: this.maxReconnectAttempts,
