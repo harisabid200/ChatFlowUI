@@ -6,6 +6,7 @@ import { v4 as uuid } from 'uuid';
 import { Chatbot } from '../types/index.js';
 import { z } from 'zod';
 import { forwardToWebhook } from '../services/webhook-forwarder.js';
+import { config } from '../config.js';
 
 interface ChatbotRow {
     id: string;
@@ -217,7 +218,15 @@ router.get('/:id/embed', (req: Request, res: Response) => {
         return;
     }
 
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    // Construct base URL with BASE_PATH support
+    let baseUrl = `${req.protocol}://${req.get('host')}`;
+
+    // Append BASE_PATH if set and not just '/'
+    if (config.basePath && config.basePath !== '/') {
+        // Ensure path formatting (remove trailing slash to avoid double slashes)
+        const path = config.basePath.endsWith('/') ? config.basePath.slice(0, -1) : config.basePath;
+        baseUrl += path.startsWith('/') ? path : `/${path}`;
+    }
 
     const embedCode = `<!-- ChatFlowUI Widget -->
 <script>

@@ -83,8 +83,17 @@ function detectBaseUrl(): string {
     const scripts = document.getElementsByTagName('script');
     for (const script of Array.from(scripts)) {
         if (script.src && (script.src.includes('widget.iife.js') || script.src.includes('widget.js'))) {
-            const url = new URL(script.src);
-            return `${url.protocol}//${url.host}`;
+            try {
+                const url = new URL(script.src);
+                // Remove the filename to get the base path
+                // e.g. http://domain.com/7861/widget/widget.iife.js -> http://domain.com/7861
+                let basePath = url.pathname.substring(0, url.pathname.lastIndexOf('/widget/'));
+
+                // Construct full base URL with path
+                return `${url.protocol}//${url.host}${basePath}`;
+            } catch (e) {
+                console.warn('[ChatFlowUI] Failed to parse script URL:', e);
+            }
         }
     }
 

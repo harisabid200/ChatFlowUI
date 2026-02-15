@@ -80,6 +80,7 @@ const configSchema = z.object({
     databasePath: z.string().default(resolve(dataDir, 'chatflowui.db')),
     rateLimitWindowMs: z.number().default(60000),
     rateLimitMax: z.number().default(100),
+    basePath: z.string().default('/'),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -95,6 +96,7 @@ export const config: Config = configSchema.parse({
     databasePath: process.env.DATABASE_PATH || resolve(dataDir, 'chatflowui.db'),
     rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10),
     rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
+    basePath: process.env.BASE_PATH || '/',
 });
 
 export { isFirstRun };
