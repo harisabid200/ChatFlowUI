@@ -43,6 +43,11 @@ async function bootstrap() {
     const app = express();
     httpServer = createServer(app);
 
+    // trust proxy is required when running behind a reverse proxy (like Nginx)
+    // to correctly identify the client IP address from X-Forwarded-For header
+    // Use 'loopback' to trust only local proxy, or 1 for first hop
+    app.set('trust proxy', 1);
+
     // Initialize WebSocket
     initializeWebSocket(httpServer);
     console.log('✅ WebSocket server initialized');
@@ -117,9 +122,14 @@ async function bootstrap() {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET');
         res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-        // Cache widget assets aggressively (1 year, immutable)
-        // Vite content-hashes output files, so cache-busting is automatic on new builds
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+
+        // Disable caching for entry files so updates are immediate
+        if (req.url === '/widget.iife.js' || req.url === '/widget.js') {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        } else {
+            // Cache other assets aggressivey (1 year, immutable)
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
         next();
     }, express.static(widgetPath));
 
