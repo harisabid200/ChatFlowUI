@@ -66,6 +66,13 @@ export async function initializeDatabase(): Promise<Database> {
       FOREIGN KEY (theme_id) REFERENCES themes(id)
     );
 
+    -- Rate Limits table
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      key TEXT PRIMARY KEY,
+      points INTEGER NOT NULL,
+      expiry INTEGER NOT NULL
+    );
+
     -- Create indexes
     CREATE INDEX IF NOT EXISTS idx_chatbots_theme ON chatbots(theme_id);
   `);
@@ -82,6 +89,13 @@ export async function initializeDatabase(): Promise<Database> {
     }
   } catch (e) {
     console.error('Migration error:', e);
+  }
+
+  // Cleanup expired rate limits on startup
+  try {
+    db.run("DELETE FROM rate_limits WHERE expiry < ?", [Date.now()]);
+  } catch (e) {
+    console.error('Failed to cleanup rate limits:', e);
   }
 
   // Save initial database
@@ -115,3 +129,14 @@ setInterval(saveDatabase, 30000);
 
 // Save on process exit
 process.on('exit', saveDatabase);
+
+// Handle graceful shutdown for signals (Docker stop, Ctrl+C)
+const handleShutdown = () => {
+  console.log('🛑 Received kill signal, saving database...');
+  saveDatabase();
+  console.log('✅ Database saved, exiting.');
+  process.exit(0);
+};
+
+process.on('SIGINT', handleShutdown);
+process.on('SIGTERM', handleShutdown);

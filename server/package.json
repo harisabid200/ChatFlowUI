@@ -1,7 +1,9 @@
 {
     "name": "server",
     "version": "1.0.0",
-    "description": "ChatFlowUI API server",
+    "description": "High-performance backend for ChatFlowUI, powered by Node.js and SQLite.",
+    "author": "Haris Abid",
+    "repository": "https://github.com/harisabid200/ChatFlowUI",
     "main": "dist/index.js",
     "type": "module",
     "scripts": {

@@ -14,6 +14,9 @@ export interface ThemeColors {
     inputText: string;
     inputBorder: string;
     userAvatarBg?: string;
+    botAvatarBg?: string;
+    botIconColor?: string;
+    userIconColor?: string;
 }
 
 export interface ThemeConfig {

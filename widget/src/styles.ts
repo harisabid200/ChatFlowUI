@@ -55,6 +55,9 @@ export function generateStyles(theme: ThemeConfig, customCss?: string): string {
       --cfui-input-border: ${colors.inputBorder};
       --cfui-font-family: 'Inter', ${typography.fontFamily};
       --cfui-user-avatar-bg: ${colors.userAvatarBg || '#64748b'};
+      --cfui-user-icon-color: ${colors.userIconColor || 'white'};
+      --cfui-bot-avatar-bg: ${colors.botAvatarBg || `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryHover} 100%)`};
+      --cfui-bot-icon-color: ${colors.botIconColor || 'white'};
       --cfui-font-size: ${typography.fontSize};
       --cfui-header-font-size: ${typography.headerFontSize};
       --cfui-border-radius: ${dimensions.borderRadius};
@@ -460,13 +463,13 @@ export function generateStyles(theme: ThemeConfig, customCss?: string): string {
     }
 
     .cfui-message-avatar.cfui-bot-avatar {
-      background: linear-gradient(135deg, var(--cfui-primary) 0%, var(--cfui-primary-hover) 100%);
-      color: white;
+      background: var(--cfui-bot-avatar-bg);
+      color: var(--cfui-bot-icon-color);
     }
 
     .cfui-message-avatar.cfui-user-avatar {
       background: linear-gradient(135deg, var(--cfui-user-avatar-bg) 0%, color-mix(in srgb, var(--cfui-user-avatar-bg) 80%, black) 100%);
-      color: white;
+      color: var(--cfui-user-icon-color);
     }
 
     .cfui-message-content {
@@ -1109,8 +1112,8 @@ export function generateStyles(theme: ThemeConfig, customCss?: string): string {
       }
     }
 
-    /* Custom CSS Slot */
-    ${customCss || ''}
+    /* Custom CSS Slot (Scoped) */
+    ${customCss ? `.cfui-widget { ${customCss} }` : ''}
   `;
 }
 

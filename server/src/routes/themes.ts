@@ -33,6 +33,9 @@ const themeConfigSchema = z.object({
         inputText: z.string(),
         inputBorder: z.string(),
         userAvatarBg: z.string().optional(),
+        botAvatarBg: z.string().optional(),
+        botIconColor: z.string().optional(),
+        userIconColor: z.string().optional(),
     }),
     typography: z.object({
         fontFamily: z.string(),

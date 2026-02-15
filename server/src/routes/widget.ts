@@ -109,6 +109,11 @@ router.post('/:chatbotId/message', dynamicCorsMiddleware, widgetLimiter, async (
             return;
         }
 
+        if (message.length > 4096) {
+            res.status(400).json({ error: 'Message too long. Maximum 4096 characters allowed.' });
+            return;
+        }
+
         const result = await forwardToWebhook(req.params.chatbotId, sessionId, message, metadata);
 
         if (!result.success) {

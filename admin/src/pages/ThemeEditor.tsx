@@ -105,15 +105,18 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
 }
 
 // ── Bot Avatar Icon (small, for messages) ──
-function BotAvatarIcon({ primary, primaryHover }: { primary: string; primaryHover: string }) {
+// ── Bot Avatar Icon (small, for messages) ──
+function BotAvatarIcon({ primary, primaryHover, avatarBg, iconColor }: { primary: string; primaryHover: string; avatarBg?: string; iconColor?: string }) {
+    const background = avatarBg || `linear-gradient(135deg, ${primary} 0%, ${primaryHover} 100%)`;
     return (
         <div style={{
             width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
-            background: `linear-gradient(135deg, ${primary} 0%, ${primaryHover} 100%)`,
+            background,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            color: iconColor || 'white',
         }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a1 1 0 011 1v3a1 1 0 01-1 1h-1a7 7 0 01-7 7H10a7 7 0 01-7-7H2a1 1 0 01-1-1v-3a1 1 0 011-1h1a7 7 0 017-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2zm-4 9a2 2 0 100 4 2 2 0 000-4zm8 0a2 2 0 100 4 2 2 0 000-4z" />
             </svg>
         </div>
@@ -121,15 +124,18 @@ function BotAvatarIcon({ primary, primaryHover }: { primary: string; primaryHove
 }
 
 // ── User Avatar Icon (small, for messages) ──
-function UserAvatarIcon({ avatarBg }: { avatarBg: string }) {
+// ── User Avatar Icon (small, for messages) ──
+function UserAvatarIcon({ avatarBg, iconColor }: { avatarBg: string; iconColor?: string }) {
+    const bg = isGradient(avatarBg) ? avatarBg : `linear-gradient(135deg, ${avatarBg} 0%, ${avatarBg}cc 100%)`;
     return (
         <div style={{
             width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
-            background: `linear-gradient(135deg, ${avatarBg} 0%, ${avatarBg}cc 100%)`,
+            background: bg,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            color: iconColor || 'white',
         }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
             </svg>
         </div>
@@ -241,7 +247,12 @@ function WidgetPreview({ config }: { config: ThemeConfig }) {
                 }}>
                     {/* Bot welcome */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', maxWidth: '90%' }}>
-                        <BotAvatarIcon primary={colors.primary} primaryHover={colors.primaryHover} />
+                        <BotAvatarIcon
+                            primary={colors.primary}
+                            primaryHover={colors.primaryHover}
+                            avatarBg={colors.botAvatarBg}
+                            iconColor={colors.botIconColor}
+                        />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             <div style={{
                                 background: colors.botMessageBg, color: colors.botMessageText,
@@ -258,7 +269,7 @@ function WidgetPreview({ config }: { config: ThemeConfig }) {
 
                     {/* User message */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', maxWidth: '90%', alignSelf: 'flex-end', flexDirection: 'row-reverse' }}>
-                        <UserAvatarIcon avatarBg={colors.userAvatarBg} />
+                        <UserAvatarIcon avatarBg={colors.userAvatarBg} iconColor={colors.userIconColor} />
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                             <div style={{
                                 background: userMsgBg, color: colors.userMessageText,
@@ -274,7 +285,12 @@ function WidgetPreview({ config }: { config: ThemeConfig }) {
 
                     {/* Bot reply */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', maxWidth: '90%' }}>
-                        <BotAvatarIcon primary={colors.primary} primaryHover={colors.primaryHover} />
+                        <BotAvatarIcon
+                            primary={colors.primary}
+                            primaryHover={colors.primaryHover}
+                            avatarBg={colors.botAvatarBg}
+                            iconColor={colors.botIconColor}
+                        />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             <div style={{
                                 background: colors.botMessageBg, color: colors.botMessageText,
@@ -512,7 +528,11 @@ export default function ThemeEditor() {
                             <ColorField label="Input Border" value={config.colors.inputBorder} onChange={(v) => updateColors('inputBorder', v)} />
                             <hr className="border-gray-100 !my-3" />
                             <p className="text-xs font-medium text-gray-500">Avatars</p>
-                            <ColorField label="User Avatar Bg" value={config.colors.userAvatarBg} onChange={(v) => updateColors('userAvatarBg', v)} />
+                            <ColorField label="User Avatar Bg" value={config.colors.userAvatarBg || '#e5e7eb'} onChange={(v) => updateColors('userAvatarBg', v)} />
+                            <ColorField label="User Icon Color" value={config.colors.userIconColor || '#000000'} onChange={(v) => updateColors('userIconColor', v)} />
+                            <div className="h-2"></div>
+                            <ColorField label="Bot Avatar Bg" value={config.colors.botAvatarBg || '#000000'} onChange={(v) => updateColors('botAvatarBg', v)} />
+                            <ColorField label="Bot Icon Color" value={config.colors.botIconColor || '#ffffff'} onChange={(v) => updateColors('botIconColor', v)} />
                         </Section>
 
                         <Section title="Typography" defaultOpen={false}>

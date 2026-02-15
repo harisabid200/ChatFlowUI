@@ -237,7 +237,8 @@ router.get('/:id/embed', (req: Request, res: Response) => {
   }(window,document,'script','chatflowui','${baseUrl}/widget/widget.iife.js'));
   
   chatflowui('init', {
-    chatbotId: '${req.params.id}'
+    chatbotId: '${req.params.id}',
+    baseUrl: '${baseUrl}'
   });
 </script>`;
 

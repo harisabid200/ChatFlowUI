@@ -111,7 +111,10 @@ const minimalTheme: ThemeConfig = {
         inputBg: '#ffffff',
         inputText: '#000000',
         inputBorder: '#d1d5db',
-        userAvatarBg: '#6b7280',
+        userAvatarBg: '#e5e7eb',
+        userIconColor: '#000000',
+        botAvatarBg: '#000000',
+        botIconColor: '#ffffff',
     },
     typography: {
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -208,6 +211,12 @@ export function seedPresetThemes(): void {
             db.run(
                 `INSERT INTO themes (id, name, is_preset, config) VALUES (?, ?, 1, ?)`,
                 [theme.id, theme.config.name, JSON.stringify(theme.config)]
+            );
+        } else {
+            // Force update presets to ensure new defaults (like color fixes) apply
+            db.run(
+                `UPDATE themes SET config = ? WHERE id = ? AND is_preset = 1`,
+                [JSON.stringify(theme.config), theme.id]
             );
         }
     }

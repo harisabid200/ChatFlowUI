@@ -17,6 +17,7 @@ export class ChatWidget {
     private isTyping = false;
     private isPending = false;
     private quickReplies: string[] = [];
+    private pendingTimeout: number | null = null;
 
     constructor(chatbotId: string, baseUrl: string) {
         this.chatbotId = chatbotId;
@@ -86,7 +87,7 @@ export class ChatWidget {
         widget.innerHTML = `
       <button class="cfui-launcher${settings.launcherLogo ? ' cfui-has-logo' : ''}" aria-label="Open chat">
         ${settings.launcherLogo
-                ? `<img class="cfui-launcher-logo" src="${settings.launcherLogo}" alt="Chat">`
+                ? `<img class="cfui-launcher-logo" src="${this.escapeHtml(settings.launcherLogo)}" alt="Chat">`
                 : `<svg class="cfui-icon-chat" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" fill="white"/></svg>`
             }
         <svg class="cfui-icon-close" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="white"/></svg>
@@ -97,16 +98,16 @@ export class ChatWidget {
           <div class="cfui-header-info">
             <div class="cfui-header-avatar">
               ${settings.headerLogo
-                ? `<img class="cfui-header-logo" src="${settings.headerLogo}" alt="">`
+                ? `<img class="cfui-header-logo" src="${this.escapeHtml(settings.headerLogo)}" alt="">`
                 : theme.branding.logo
-                    ? `<img class="cfui-header-logo" src="${theme.branding.logo}" alt="">`
+                    ? `<img class="cfui-header-logo" src="${this.escapeHtml(theme.branding.logo)}" alt="">`
                     : `<div class="cfui-header-logo cfui-default-logo">${icons.bot}</div>`
             }
               <div class="cfui-status-indicator"></div>
             </div>
             <div class="cfui-header-text">
-              <h3>${settings.headerTitle || theme.branding.title}</h3>
-              ${settings.headerSubtitle || theme.branding.subtitle ? `<p>${settings.headerSubtitle || theme.branding.subtitle}</p>` : '<p>Online</p>'}
+              <h3>${this.escapeHtml(settings.headerTitle || theme.branding.title)}</h3>
+              ${settings.headerSubtitle || theme.branding.subtitle ? `<p>${this.escapeHtml(settings.headerSubtitle || theme.branding.subtitle)}</p>` : '<p>Online</p>'}
             </div>
           </div>
           <div class="cfui-header-actions">
@@ -222,8 +223,8 @@ export class ChatWidget {
                 this.showQuickReplies(data.quickReplies);
             }
 
-            // Unlock input after receiving async response
             this.setPending(false);
+            this.clearPendingTimeout();
 
             this.playSound();
         });
@@ -232,13 +233,16 @@ export class ChatWidget {
     }
 
     private restoreState(): void {
+        // Get stored conversation
+        const conversation = this.storage.getConversation();
+
         // Restore open state
-        if (this.storage.isWidgetOpen()) {
+        // Only if previously open AND has messages (to avoid empty auto-opens/connections)
+        if (this.storage.isWidgetOpen() && conversation.messages.length > 0) {
             this.open();
         }
 
         // Restore messages
-        const conversation = this.storage.getConversation();
         if (conversation.messages.length > 0) {
             conversation.messages.forEach((msg) => {
                 this.renderMessage(msg, false);
@@ -311,6 +315,7 @@ export class ChatWidget {
 
         // Lock input while waiting for response
         this.setPending(true);
+        this.startPendingTimeout(content);
 
         // Add user message (only if not a retry)
         if (!retryContent) {
@@ -364,7 +369,10 @@ export class ChatWidget {
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                    const errorMessage = errorData.error || `Server error: ${response.status}`;
+                    const customError = new Error(errorMessage);
+                    (customError as any).status = response.status;
+                    throw customError;
                 }
 
                 const data = await response.json();
@@ -386,6 +394,8 @@ export class ChatWidget {
                     }
 
                     this.playSound();
+                    // Clear timeout since we got a sync response
+                    this.clearPendingTimeout();
                 }
                 // Note: For async WebSocket responses, setPending(false) is called in socket message handler
 
@@ -402,8 +412,9 @@ export class ChatWidget {
                     break;
                 }
 
-                // Don't retry on 4xx errors (client errors)
-                if ((error as Error).message.includes('4')) {
+                // Don't retry on 4xx errors (client errors), BUT allow 429 (Too Many Requests)
+                const status = (error as any).status;
+                if (status && status >= 400 && status < 500 && status !== 429) {
                     break;
                 }
 
@@ -422,6 +433,38 @@ export class ChatWidget {
         this.hideTyping();
         this.setPending(false);
         this.showErrorMessage(this.getErrorMessage(lastError), content);
+    }
+
+    private escapeHtml(unsafe: string | undefined | null): string {
+        if (!unsafe) return '';
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+
+
+    private startPendingTimeout(content: string): void {
+        this.clearPendingTimeout();
+        // 60 second timeout for async responses
+        this.pendingTimeout = window.setTimeout(() => {
+            if (this.isPending) {
+                console.warn('[ChatFlowUI] Response timed out');
+                this.setPending(false);
+                this.hideTyping();
+                this.showErrorMessage("Response timed out. Please try again.", content);
+            }
+        }, 60000);
+    }
+
+    private clearPendingTimeout(): void {
+        if (this.pendingTimeout) {
+            clearTimeout(this.pendingTimeout);
+            this.pendingTimeout = null;
+        }
     }
 
     private getErrorMessage(error: Error | null): string {
@@ -632,7 +675,7 @@ export class ChatWidget {
 
         this.quickReplies = replies;
         container.innerHTML = replies
-            .map((reply) => `<button class="cfui-quick-reply">${reply}</button>`)
+            .map((reply) => `<button class="cfui-quick-reply">${this.escapeHtml(reply)}</button>`)
             .join('');
 
         // Bind click events

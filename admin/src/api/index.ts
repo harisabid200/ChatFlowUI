@@ -185,6 +185,9 @@ export interface ThemeConfig {
         inputText: string;
         inputBorder: string;
         userAvatarBg: string;
+        botAvatarBg?: string;
+        botIconColor?: string;
+        userIconColor?: string;
     };
     typography: {
         fontFamily: string;

@@ -20,12 +20,33 @@ export function dynamicCorsMiddleware(req: Request, res: Response, next: NextFun
 
     // If no chatbotId in route, use admin CORS (protected by auth)
     if (!chatbotId) {
-        // In production, restrict to same origin or ADMIN_ORIGIN env var
+        // In production, restrict to same origin, ADMIN_ORIGIN, or global allow list
         const adminOrigin = process.env.ADMIN_ORIGIN;
-        const allowedOrigin = adminOrigin || (process.env.NODE_ENV === 'production' ? undefined : origin);
+        let allowedOrigin = adminOrigin;
+
+        // If not explicitly set via ADMIN_ORIGIN, check the global allow list
+        if (!allowedOrigin && config.corsAllowedOrigins && origin) {
+            const globalAllowed = config.corsAllowedOrigins.split(',').map(o => o.trim());
+            const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+
+            const isAllowed = globalAllowed.some(allowed => {
+                const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
+                return normalizedOrigin === normalizedAllowed;
+            });
+
+            if (isAllowed) {
+                allowedOrigin = origin;
+            }
+        }
+
+        // Fallback for non-production: allow any origin
+        if (!allowedOrigin && process.env.NODE_ENV !== 'production') {
+            allowedOrigin = origin;
+        }
 
         if (allowedOrigin) {
             res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+            res.setHeader('Vary', 'Origin');
         }
         res.setHeader('Access-Control-Allow-Credentials', 'true');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -52,6 +73,7 @@ export function dynamicCorsMiddleware(req: Request, res: Response, next: NextFun
 
         if (isGloballyAllowed) {
             res.setHeader('Access-Control-Allow-Origin', origin); // Return the actual origin
+            res.setHeader('Vary', 'Origin');
             res.setHeader('Access-Control-Allow-Credentials', 'true');
             res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
             res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -105,6 +127,7 @@ export function dynamicCorsMiddleware(req: Request, res: Response, next: NextFun
 
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');

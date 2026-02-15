@@ -34,12 +34,19 @@ if (existsSync(credentialsPath)) {
 
 // Generate credentials if not exists
 function generatePassword(length = 12): string {
-    // Using only alphanumeric to avoid terminal copy-paste issues
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    const randomBytes = crypto.randomBytes(length);
+    const charsLength = chars.length;
+    const maxValid = 256 - (256 % charsLength);
     let password = '';
-    for (let i = 0; i < length; i++) {
-        password += chars.charAt(randomBytes[i] % chars.length);
+
+    while (password.length < length) {
+        const randomBytes = crypto.randomBytes(length * 2); // Fetch more bytes to reduce calls
+        for (let i = 0; i < randomBytes.length && password.length < length; i++) {
+            const byte = randomBytes[i];
+            if (byte < maxValid) {
+                password += chars.charAt(byte % charsLength);
+            }
+        }
     }
     return password;
 }
@@ -57,7 +64,7 @@ if (!process.env.ADMIN_PASSWORD && !storedCredentials.adminPassword) {
 
 // Save credentials if newly generated
 if (isFirstRun) {
-    writeFileSync(credentialsPath, JSON.stringify(storedCredentials, null, 2));
+    writeFileSync(credentialsPath, JSON.stringify(storedCredentials, null, 2), { mode: 0o600 });
     console.log('\n' + '='.repeat(60));
     console.log('🔑 FIRST RUN - AUTO-GENERATED CREDENTIALS');
     console.log('='.repeat(60));

@@ -98,6 +98,7 @@ function detectBaseUrl(): string {
     }
 
     // Fallback to current origin
+    console.warn('[ChatFlowUI] Could not detect base URL from script tag (looking for "widget.iife.js" or "widget.js"). Defaulting to origin:', window.location.origin);
     return window.location.origin;
 }
 

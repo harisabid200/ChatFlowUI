@@ -15,11 +15,11 @@ if [ -f "$INDEX_HTML" ]; then
     # Escape forward slashes in BASE_PATH for sed
     ESCAPED_PATH=$(echo "$BASE_PATH" | sed 's/\//\\\//g')
     
-    # 1. Replace window.__BASE_PATH__ = '/'; with the actual path
-    sed -i "s/window.__BASE_PATH__ = '\/';/window.__BASE_PATH__ = '${ESCAPED_PATH}';/g" "$INDEX_HTML"
+    # 1. Replace window.__BASE_PATH__ = '...'; with the actual path (idempotent regex)
+    sed -i "s/window.__BASE_PATH__ = '.*';/window.__BASE_PATH__ = '${ESCAPED_PATH}';/g" "$INDEX_HTML"
     
-    # 2. Replace <base href="/" /> with the actual base path
-    sed -i "s/<base href=\"\/\" \/>/<base href=\"${ESCAPED_PATH}\" \/>/g" "$INDEX_HTML"
+    # 2. Replace <base href="..." /> with the actual base path (idempotent regex)
+    sed -i "s/<base href=\".*\" \/>/<base href=\"${ESCAPED_PATH}\" \/>/g" "$INDEX_HTML"
     
     echo "✅ Base path configured successfully"
 else

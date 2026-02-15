@@ -1,6 +1,7 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { getDb } from '../db/index.js';
+import { config } from '../config.js';
 
 interface SocketService {
     sendToSession(chatbotId: string, sessionId: string, data: unknown): void;
@@ -11,7 +12,80 @@ let socketService: SocketService | null = null;
 export function initializeWebSocket(httpServer: HttpServer): SocketService {
     const io = new SocketIOServer(httpServer, {
         cors: {
-            origin: '*', // CORS handled at route level per chatbot
+            origin: (requestOrigin, callback) => {
+                // 1. Allow no origin (server-to-server, mobile apps, Postman)
+                if (!requestOrigin) {
+                    return callback(null, true);
+                }
+
+                // 2. Allow Admin Origin
+                if (process.env.ADMIN_ORIGIN === requestOrigin) {
+                    return callback(null, true);
+                }
+
+                // 3. Allow Global Allowed Origins
+                if (config.corsAllowedOrigins) {
+                    const globalAllowed = config.corsAllowedOrigins.split(',').map(o => o.trim());
+                    const normalizedOrigin = requestOrigin.endsWith('/') ? requestOrigin.slice(0, -1) : requestOrigin;
+                    const isAllowed = globalAllowed.some(allowed => {
+                        const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
+                        return normalizedOrigin === normalizedAllowed;
+                    });
+                    if (isAllowed) {
+                        return callback(null, true);
+                    }
+                }
+
+                // 4. Allow Localhost in Development
+                if (process.env.NODE_ENV !== 'production') {
+                    if (requestOrigin.includes('localhost') || requestOrigin.includes('127.0.0.1')) {
+                        return callback(null, true);
+                    }
+                }
+
+                // 5. Allow Server's Own Origin (Self)
+                const host = process.env.HOST || 'localhost';
+                const port = process.env.PORT || 7861;
+                if (requestOrigin === `http://${host}:${port}` || requestOrigin === `https://${host}:${port}`) {
+                    return callback(null, true);
+                }
+
+                // 6. Check Database for Chatbot-specific allowed origins
+                try {
+                    const db = getDb();
+                    // Check if ANY chatbot allows this origin
+                    const result = db.exec('SELECT allowed_origins FROM chatbots');
+
+                    if (result.length > 0 && result[0].values.length > 0) {
+                        const normalizedOrigin = requestOrigin.endsWith('/') ? requestOrigin.slice(0, -1) : requestOrigin;
+
+                        const isAllowedByChatbot = result[0].values.some(row => {
+                            try {
+                                const allowedOrigins = JSON.parse(row[0] as string) as string[];
+                                return allowedOrigins.some(allowed => {
+                                    const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
+                                    if (allowed.startsWith('*.')) {
+                                        const domain = allowed.slice(2);
+                                        return normalizedOrigin.endsWith(domain) || normalizedOrigin === `https://${domain}` || normalizedOrigin === `http://${domain}`;
+                                    }
+                                    return normalizedOrigin === normalizedAllowed;
+                                });
+                            } catch {
+                                return false;
+                            }
+                        });
+
+                        if (isAllowedByChatbot) {
+                            return callback(null, true);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error checking WebSocket origin against DB:', err);
+                }
+
+                // Reject if no match
+                return callback(new Error('Not allowed by CORS'));
+            },
             methods: ['GET', 'POST'],
         },
         path: '/socket.io',

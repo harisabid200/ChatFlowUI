@@ -1,7 +1,9 @@
 {
     "name": "widget",
     "version": "1.0.0",
-    "description": "ChatFlowUI embeddable widget",
+    "description": "Lightweight, embeddable chat widget for ChatFlowUI.",
+    "author": "Haris Abid",
+    "repository": "https://github.com/harisabid200/ChatFlowUI",
     "type": "module",
     "main": "dist/widget.js",
     "scripts": {
