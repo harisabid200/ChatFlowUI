@@ -14,6 +14,7 @@ services:
       - NODE_ENV=production
       - PORT=7861
       - HOST=0.0.0.0
+      # - BASE_PATH=/7861 # Uncomment and set this if hosting on a subpath (e.g. /7861)
       # - JWT_SECRET=change_me_in_production_to_a_long_random_string
       # - ADMIN_USERNAME=admin
       # - ADMIN_PASSWORD=change_me

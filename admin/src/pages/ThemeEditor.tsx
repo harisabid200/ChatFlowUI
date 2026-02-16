@@ -8,11 +8,11 @@ import Layout from '../components/Layout';
 
 // ── SVG Icons (matching the actual widget) ──
 const widgetIcons = {
-    chat: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.49 3.53 1.35 5L2 22l5-1.35C8.47 21.51 10.18 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.55 0-3.02-.44-4.27-1.2l-.3-.18-3.12.82.83-3.04-.2-.32A7.96 7.96 0 014 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8zm4.39-5.15c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.93-1.18-.71-.63-1.19-1.41-1.33-1.65-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41-.14-.01-.3-.01-.46-.01s-.42.06-.64.3c-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.1.16 1.52.1.46-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28z" fill="white"/></svg>`,
+    chat: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.49 3.53 1.35 5L2 22l5-1.35C8.47 21.51 10.18 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.55 0-3.02-.44-4.27-1.2l-.3-.18-3.12.82.83-3.04-.2-.32A7.96 7.96 0 014 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8zm4.39-5.15c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.93-1.18-.71-.63-1.19-1.41-1.33-1.65-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41-.14-.01-.3-.01-.46-.01s-.42.06-.64.3c-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.1.16 1.52.1.46-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28z" fill="currentColor"/></svg>`,
     sound: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" fill="currentColor"/></svg>`,
     refresh: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor"/></svg>`,
-    close: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="white"/></svg>`,
-    bot: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a1 1 0 011 1v3a1 1 0 01-1 1h-1a7 7 0 01-7 7H10a7 7 0 01-7-7H2a1 1 0 01-1-1v-3a1 1 0 011-1h1a7 7 0 017-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2zm-4 9a2 2 0 100 4 2 2 0 000-4zm8 0a2 2 0 100 4 2 2 0 000-4z" fill="white"/></svg>`,
+    close: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor"/></svg>`,
+    bot: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a1 1 0 011 1v3a1 1 0 01-1 1h-1a7 7 0 01-7 7H10a7 7 0 01-7-7H2a1 1 0 01-1-1v-3a1 1 0 011-1h1a7 7 0 017-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2zm-4 9a2 2 0 100 4 2 2 0 000-4zm8 0a2 2 0 100 4 2 2 0 000-4z" fill="currentColor"/></svg>`,
 };
 
 // ── Helper ──
@@ -126,7 +126,9 @@ function BotAvatarIcon({ primary, primaryHover, avatarBg, iconColor }: { primary
 // ── User Avatar Icon (small, for messages) ──
 // ── User Avatar Icon (small, for messages) ──
 function UserAvatarIcon({ avatarBg, iconColor }: { avatarBg: string; iconColor?: string }) {
-    const bg = isGradient(avatarBg) ? avatarBg : `linear-gradient(135deg, ${avatarBg} 0%, ${avatarBg}cc 100%)`;
+    const bg = isGradient(avatarBg)
+        ? avatarBg
+        : `linear-gradient(135deg, ${avatarBg} 0%, color-mix(in srgb, ${avatarBg} 80%, black) 100%)`;
     return (
         <div style={{
             width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
@@ -150,7 +152,7 @@ function WidgetPreview({ config }: { config: ThemeConfig }) {
 
     const headerBg = isGradient(colors.headerBg)
         ? colors.headerBg
-        : `linear-gradient(135deg, ${colors.headerBg} 0%, ${colors.headerBg}dd 100%)`;
+        : `linear-gradient(135deg, ${colors.headerBg} 0%, color-mix(in srgb, ${colors.headerBg} 85%, black) 100%)`;
 
     const userMsgBg = isGradient(colors.userMessageBg)
         ? colors.userMessageBg
@@ -272,10 +274,15 @@ function WidgetPreview({ config }: { config: ThemeConfig }) {
                         <UserAvatarIcon avatarBg={colors.userAvatarBg} iconColor={colors.userIconColor} />
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                             <div style={{
-                                background: userMsgBg, color: colors.userMessageText,
+                                background: isGradient(colors.userMessageBg)
+                                    ? colors.userMessageBg
+                                    : `linear-gradient(135deg, ${colors.userMessageBg} 0%, color-mix(in srgb, ${colors.userMessageBg} 90%, black) 100%)`,
+                                color: colors.userMessageText,
                                 padding: '14px 18px', borderRadius: '18px', borderBottomRightRadius: '6px',
                                 lineHeight: '1.55',
-                                boxShadow: isGradient(colors.userMessageBg) ? '0 2px 12px rgba(0,0,0,0.15)' : undefined,
+                                boxShadow: isGradient(colors.userMessageBg)
+                                    ? '0 2px 12px rgba(0, 0, 0, 0.15)'
+                                    : `0 2px 12px color-mix(in srgb, ${colors.userMessageBg} 30%, transparent)`,
                             }}>
                                 Hi! I need some help
                             </div>
@@ -297,7 +304,7 @@ function WidgetPreview({ config }: { config: ThemeConfig }) {
                                 padding: '14px 18px', borderRadius: '18px', borderBottomLeftRadius: '6px',
                                 lineHeight: '1.55',
                                 boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                                border: '1px solid rgba(0,0,0,0.06)',
+                                border: `1px solid color-mix(in srgb, ${colors.inputBorder} 50%, transparent)`,
                             }}>
                                 {"Sure! I'd be happy to assist you. 😊"}
                             </div>

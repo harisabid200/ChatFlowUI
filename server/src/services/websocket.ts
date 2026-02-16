@@ -141,7 +141,18 @@ export function initializeWebSocket(httpServer: HttpServer): SocketService {
                         // In development, allow localhost
                         (process.env.NODE_ENV !== 'production' && (origin.includes('localhost') || origin.includes('127.0.0.1')));
 
-                    if (!isAllowed && !isSelfOrAdmin) {
+                    // Check against Global CORS Allowed Origins
+                    let isGlobalAllowed = false;
+                    if (config.corsAllowedOrigins) {
+                        const globalAllowed = config.corsAllowedOrigins.split(',').map(o => o.trim());
+                        const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+                        isGlobalAllowed = globalAllowed.some(allowed => {
+                            const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
+                            return normalizedOrigin === normalizedAllowed;
+                        });
+                    }
+
+                    if (!isAllowed && !isSelfOrAdmin && !isGlobalAllowed) {
                         console.log(`🚫 Socket connection rejected: Origin ${origin} not allowed for chatbot ${chatbotId}`);
                         socket.emit('error', { message: 'Origin not allowed' });
                         return;

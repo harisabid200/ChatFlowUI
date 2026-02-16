@@ -48,6 +48,11 @@ router.options('/:chatbotId/*', dynamicCorsMiddleware);
 
 // Get widget configuration (public, CORS-restricted)
 router.get('/:chatbotId/config', dynamicCorsMiddleware, (req: Request, res: Response) => {
+    // Prevent caching of config so updates are immediate
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     const db = getDb();
     const chatbotResult = db.exec(`
     SELECT id, name, theme_id, custom_css, pre_chat_form, settings, launcher_logo, header_logo

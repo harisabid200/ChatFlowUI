@@ -114,11 +114,16 @@ async function bootstrap() {
 
     // Serve static files for admin dashboard (in production)
     const adminPath = resolve(__dirname, '../../admin/dist');
+    // Mount at root (for when proxy strips path)
     app.use(express.static(adminPath));
+    // Mount at base path (for when proxy preserves path)
+    if (config.basePath !== '/') {
+        app.use(config.basePath, express.static(adminPath));
+    }
 
     // Serve widget bundle (with CORS for cross-origin embedding)
     const widgetPath = resolve(__dirname, '../../widget/dist');
-    app.use('/widget', (req, res, next) => {
+    const serveWidget = (req: express.Request, res: express.Response, next: express.NextFunction) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET');
         res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -131,10 +136,28 @@ async function bootstrap() {
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         }
         next();
-    }, express.static(widgetPath));
+    };
+
+    app.use('/widget', serveWidget, express.static(widgetPath));
+    if (config.basePath !== '/') {
+        app.use(`${config.basePath}/widget`, serveWidget, express.static(widgetPath));
+    }
 
     // SPA fallback for admin
-    app.get('*', (_req, res) => {
+    app.get('*', (req, res, next) => {
+        // Skip API, widget, and webhook routes
+        if (req.url.startsWith('/api') || req.url.startsWith('/widget') || req.url.startsWith('/webhook')) {
+            return next();
+        }
+        // If specific base path is set, also check against it
+        if (config.basePath !== '/' && (
+            req.url.startsWith(`${config.basePath}/api`) ||
+            req.url.startsWith(`${config.basePath}/widget`) ||
+            req.url.startsWith(`${config.basePath}/webhook`)
+        )) {
+            return next();
+        }
+
         res.sendFile(resolve(adminPath, 'index.html'));
     });
 
