@@ -19,35 +19,114 @@ A self-hosted, premium chatbot widget system for n8n. Design beautiful chat widg
 
 ## Quick Start
 
-### Docker (Recommended)
+There are two ways to run ChatFlowUI depending on your setup:
 
+---
+
+### Scenario 1: Direct Port Access (Local / Simple VPS)
+
+Use this if you just want to run ChatFlowUI on its own — locally or on a VPS where it's the only app.
+
+**Linux/macOS:**
 ```bash
-# Single command install
 docker run -d \
   --name chatflowui \
+  --restart unless-stopped \
   -p 7861:7861 \
-  -e BASE_PATH=/7861/ \
   -v chatflowui_data:/app/data \
   harisabid/chatflowui:latest
+```
 
+**Windows (PowerShell):**
+```powershell
+docker run -d `
+  --name chatflowui `
+  --restart unless-stopped `
+  -p 7861:7861 `
+  -v chatflowui_data:/app/data `
+  harisabid/chatflowui:latest
+```
+
+Access at: **`http://localhost:7861`** (or `http://your-server-ip:7861`)
+
+```bash
 # View auto-generated credentials
 docker logs chatflowui
 ```
 
-Or with docker-compose:
+> No `BASE_PATH` needed — it defaults to `/`.
+
+---
+
+### Scenario 2: VPS alongside n8n (Reverse Proxy)
+
+Use this when n8n is already running on your VPS and you want ChatFlowUI accessible at `https://your-domain.com/7861/`.
+
+**Step 1 — Run the container (bind to localhost only for security):**
+
+**Linux/macOS:**
+```bash
+docker run -d \
+  --name chatflowui \
+  --restart unless-stopped \
+  -p 127.0.0.1:7861:7861 \
+  -e BASE_PATH=/7861/ \
+  -v chatflowui_data:/app/data \
+  harisabid/chatflowui:latest
+```
+
+**Windows (PowerShell):**
+```powershell
+docker run -d `
+  --name chatflowui `
+  --restart unless-stopped `
+  -p 127.0.0.1:7861:7861 `
+  -e BASE_PATH=/7861/ `
+  -v chatflowui_data:/app/data `
+  harisabid/chatflowui:latest
+```
+
+**Step 2 — Add this block to your Nginx config:**
+
+```nginx
+location /7861/ {
+    proxy_pass http://127.0.0.1:7861;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # WebSocket support
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+}
+```
+
+> ⚠️ **Important:** Do **not** add a trailing slash to `proxy_pass` — `http://127.0.0.1:7861` not `http://127.0.0.1:7861/`. The trailing slash breaks asset loading.
+
+Access at: **`https://your-domain.com/7861/`**
+
+```bash
+# View auto-generated credentials
+docker logs chatflowui
+```
+
+For Caddy, Traefik, and Nginx Proxy Manager instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+---
+
+### Docker Compose
 
 ```bash
 curl -O https://raw.githubusercontent.com/harisabid200/ChatFlowUI/main/docker-compose.yml
-docker-compose up -d
-docker-compose logs chatflowui
-```
-
-docker-compose logs chatflowui
+docker compose up -d
+docker compose logs chatflowui
 ```
 
 ## First Run
 
-1. Open `http://<your-server-ip>:7861` in your browser
+1. Open the URL in your browser (see above for your scenario)
 2. Login with the credentials shown in the terminal
 3. Change your password when prompted
 4. Create your first chatbot
@@ -121,6 +200,7 @@ All settings are optional. ChatFlowUI auto-generates secure defaults on first ru
 |----------|---------|-------------|
 | `PORT` | `7861` | Server port |
 | `HOST` | `0.0.0.0` | Bind address |
+| `BASE_PATH` | `/` | Base path. Use `/` for direct port access, `/7861/` for reverse proxy subpath |
 | `ADMIN_USERNAME` | `admin` | Admin username |
 | `ADMIN_PASSWORD` | (generated) | Admin password |
 | `JWT_SECRET` | (generated) | JWT signing key |
@@ -130,8 +210,8 @@ All settings are optional. ChatFlowUI auto-generates secure defaults on first ru
 
 ```bash
 # Clone repository
-git clone https://github.com/yourorg/chatflowui.git
-cd chatflowui
+git clone https://github.com/harisabid200/ChatFlowUI.git
+cd ChatFlowUI
 
 # Install dependencies
 npm install
@@ -185,16 +265,16 @@ chatflowui/
 
 ## Community
 
-- 📖 [Documentation](https://github.com/yourusername/chatflowui/wiki)
-- 🐛 [Report Bug](https://github.com/yourusername/chatflowui/issues/new?template=bug_report.md)
-- 💡 [Request Feature](https://github.com/yourusername/chatflowui/issues/new?template=feature_request.md)
-- 💬 [Discussions](https://github.com/yourusername/chatflowui/discussions)
+- 📖 [Documentation](https://github.com/harisabid200/ChatFlowUI/wiki)
+- 🐛 [Report Bug](https://github.com/harisabid200/ChatFlowUI/issues/new?template=bug_report.md)
+- 💡 [Request Feature](https://github.com/harisabid200/ChatFlowUI/issues/new?template=feature_request.md)
+- 💬 [Discussions](https://github.com/harisabid200/ChatFlowUI/discussions)
 - 🤝 [Contributing](CONTRIBUTING.md)
 - 🔒 [Security Policy](SECURITY.md)
 
 ## Roadmap
 
-See [open issues](https://github.com/yourusername/chatflowui/issues) for planned features and known issues.
+See [open issues](https://github.com/harisabid200/ChatFlowUI/issues) for planned features and known issues.
 
 ## Contributors
 
@@ -202,7 +282,7 @@ Thanks to all contributors! 🎉
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=yourusername/chatflowui&type=Date)](https://star-history.com/#yourusername/chatflowui&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=harisabid200/ChatFlowUI&type=Date)](https://star-history.com/#harisabid200/ChatFlowUI&Date)
 
 ## License
 

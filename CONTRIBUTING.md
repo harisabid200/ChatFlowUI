@@ -32,7 +32,7 @@ ChatFlowUI is a monorepo with three workspaces:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/chatflowui.git
+git clone https://github.com/harisabid200/ChatFlowUI.git
 cd chatflowui
 
 # Install dependencies for all workspaces
@@ -285,7 +285,7 @@ Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md) an
 
 ### Questions
 
-For questions, use [GitHub Discussions](https://github.com/yourusername/chatflowui/discussions) or the [question template](.github/ISSUE_TEMPLATE/question.md).
+For questions, use [GitHub Discussions](https://github.com/harisabid200/ChatFlowUI/discussions) or the [question template](.github/ISSUE_TEMPLATE/question.md).
 
 ## Community Guidelines
 
@@ -302,7 +302,7 @@ By contributing, you agree that your contributions will be licensed under the [M
 ## Questions?
 
 Feel free to reach out:
-- Open a [discussion](https://github.com/yourusername/chatflowui/discussions)
+- Open a [discussion](https://github.com/harisabid200/ChatFlowUI/discussions)
 - Comment on related issues
 - Tag maintainers in your PR
 

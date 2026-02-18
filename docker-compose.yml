@@ -1,12 +1,14 @@
 services:
   app:
     # Use the image if available, or build from current directory
-    # image: chatflowui/chatflowui:latest
-    build: .
+    image: harisabid/chatflowui:latest
+    # build: .
     container_name: chatflowui
     restart: unless-stopped
     ports:
       - "7861:7861"
+      # For VPS alongside n8n, bind to localhost only and set BASE_PATH:
+      # - "127.0.0.1:7861:7861"
     volumes:
       # Persist data
       - chatflowui_data:/app/data
@@ -14,7 +16,10 @@ services:
       - NODE_ENV=production
       - PORT=7861
       - HOST=0.0.0.0
-      # - BASE_PATH=/7861 # Uncomment and set this if hosting on a subpath (e.g. /7861)
+      # BASE_PATH: only set this when using a reverse proxy (Nginx/Caddy).
+      # Requires proxy_pass WITHOUT a trailing slash, e.g.: proxy_pass http://127.0.0.1:7861;
+      # Leave unset (or use /) for direct port access — setting it without a proxy causes a white screen.
+      # - BASE_PATH=/7861/
       # - JWT_SECRET=change_me_in_production_to_a_long_random_string
       # - ADMIN_USERNAME=admin
       # - ADMIN_PASSWORD=change_me

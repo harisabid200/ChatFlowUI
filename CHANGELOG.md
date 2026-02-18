@@ -53,4 +53,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Production readiness report
 - Network security review
 
-[1.0.0]: https://github.com/yourusername/chatflowui/releases/tag/v1.0.0
+[1.0.0]: https://github.com/harisabid200/ChatFlowUI/releases/tag/v1.0.0
