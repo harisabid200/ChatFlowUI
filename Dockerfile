@@ -9,9 +9,6 @@ COPY admin/package*.json ./admin/
 COPY widget/package*.json ./widget/
 COPY tsconfig.base.json ./
 
-# Add root node_modules/.bin to PATH so tsc/vite are found by workspace scripts
-ENV PATH=/app/node_modules/.bin:$PATH
-
 # Install ALL dependencies including devDeps (tsc, vite, etc.)
 RUN npm ci
 
@@ -20,8 +17,13 @@ COPY server ./server
 COPY admin ./admin
 COPY widget ./widget
 
-# Build all workspaces — PATH above ensures tsc and vite are found
-RUN npm run build
+# Build each workspace by calling node directly on the JS entrypoints.
+# This bypasses node_modules/.bin symlink/shebang resolution issues on Alpine
+# busybox sh, which cause "tsc: not found" even when typescript is installed.
+RUN node node_modules/typescript/bin/tsc -p server/tsconfig.json
+RUN node node_modules/typescript/bin/tsc -p admin/tsconfig.json --noEmit && \
+    node node_modules/vite/bin/vite.js build --config admin/vite.config.ts
+RUN node node_modules/vite/bin/vite.js build --config widget/vite.config.ts
 
 # Production stage
 FROM node:20-alpine AS production
