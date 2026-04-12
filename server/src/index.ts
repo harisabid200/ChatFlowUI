@@ -3,13 +3,14 @@ import { createServer } from 'http';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
+import bcrypt from 'bcryptjs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 import { config, isFirstRun } from './config.js';
-import { initializeDatabase, getDb, saveDatabase } from './db/index.js';
+import { initializeDatabase, getDb, saveDatabase, getAutoSaveInterval } from './db/index.js';
 import { seedPresetThemes } from './db/themes.js';
-import { initializeWebSocket } from './services/websocket.js';
+import { initializeWebSocket, getSessionSweepInterval } from './services/websocket.js';
 import { dynamicCorsMiddleware } from './middleware/cors.js';
 import { apiLimiter } from './middleware/rateLimit.js';
 
@@ -57,7 +58,7 @@ async function bootstrap() {
         contentSecurityPolicy: config.nodeEnv === 'production' ? {
             directives: {
                 defaultSrc: ["'self'"],
-                scriptSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline needed for widget
+                scriptSrc: ["'self'", "'unsafe-inline'", "'strict-dynamic'"], // unsafe-inline ignored by CSP3+ browsers when strict-dynamic present
                 styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
                 imgSrc: ["'self'", "data:", "https:"],
                 fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
@@ -84,15 +85,24 @@ async function bootstrap() {
         next();
     });
 
-    // Parse JSON and cookies
-    // Body parsing with increased limit for base64 images
-    app.use(express.json({ limit: '2mb' }));
-    app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+    // Body parsing — limits scoped per route group for defence-in-depth
+    // Admin API allows 2mb for base64 image uploads (logos)
+    app.use('/api', express.json({ limit: '2mb' }));
+    app.use('/api', express.urlencoded({ extended: true, limit: '2mb' }));
+    // Widget messages are text-only — 16kb is generous
+    app.use('/widget', express.json({ limit: '16kb' }));
+    // n8n webhook response payloads — 64kb covers any realistic response
+    app.use('/webhook', express.json({ limit: '64kb' }));
     app.use(cookieParser());
 
-    // Health check endpoint (no auth)
+    // Health check endpoint (no auth) — verifies DB is reachable
     app.get('/health', (_req, res) => {
-        res.json({ status: 'ok' });
+        try {
+            getDb().exec('SELECT 1');
+            res.json({ status: 'ok', db: 'ok' });
+        } catch {
+            res.status(503).json({ status: 'error', db: 'unavailable' });
+        }
     });
 
     // API rate limiting
@@ -185,8 +195,6 @@ async function bootstrap() {
 
 // Seed admin user
 async function seedAdminUser() {
-    const bcryptModule = await import('bcryptjs');
-    const bcrypt = bcryptModule.default || bcryptModule;
     const db = getDb();
 
     // Check if admin user exists
@@ -215,25 +223,29 @@ bootstrap().catch((error) => {
 });
 
 // Graceful shutdown handling
-function gracefulShutdown(signal: string) {
+async function gracefulShutdown(signal: string) {
     console.log(`\n${signal} received. Shutting down gracefully...`);
 
+    // Stop all background intervals before closing connections
+    clearInterval(getAutoSaveInterval() ?? undefined);
+    clearInterval(getSessionSweepInterval() ?? undefined);
+
     if (httpServer) {
-        httpServer.close(() => {
+        httpServer.close(async () => {
             console.log('✅ HTTP server closed');
-            saveDatabase();
+            await saveDatabase();
             console.log('✅ Database saved');
             process.exit(0);
         });
 
         // Force exit after 10 seconds
-        setTimeout(() => {
+        setTimeout(async () => {
             console.log('⚠️ Forcing shutdown after timeout');
-            saveDatabase();
+            await saveDatabase();
             process.exit(1);
         }, 10000);
     } else {
-        saveDatabase();
+        await saveDatabase();
         process.exit(0);
     }
 }

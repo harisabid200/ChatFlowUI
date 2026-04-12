@@ -21,8 +21,8 @@ export default function Login() {
         setLoading(true);
 
         try {
-            const { token, user } = await authApi.login(username, password);
-            setAuth(token, user);
+            const { user } = await authApi.login(username, password);
+            setAuth(user);
 
             if (user.mustChangePassword) {
                 navigate('/change-password');

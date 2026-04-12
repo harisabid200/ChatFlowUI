@@ -1,10 +1,61 @@
-import { getDb } from '../db/index.js';
-import { getOne } from '../db/helpers.js';
+import crypto from 'crypto';
+import dns from 'dns/promises';
+import net from 'net';
+import { getCachedChatbot } from './chatbot-cache.js';
 
-interface ChatbotWebhookInfo {
-    webhook_url: string;
-    webhook_secret: string | null;
+// --- SSRF Guard -----------------------------------------------------------
+// Checks whether an IP string falls in any RFC-private / loopback / link-local
+// range. Called on both literal IPs and DNS-resolved IPs.
+function isPrivateIp(ip: string): boolean {
+    const v4 = [
+        /^127\./,                                          // loopback
+        /^10\./,                                           // RFC 1918
+        /^172\.(1[6-9]|2\d|3[01])\./,                    // RFC 1918
+        /^192\.168\./,                                     // RFC 1918
+        /^169\.254\./,                                     // link-local / AWS metadata
+        /^0\./,                                            // "this" network
+        /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./,     // CGNAT RFC 6598
+    ];
+    const v6 = [
+        /^::1$/,          // loopback
+        /^fc00:/i,        // unique local
+        /^fd[0-9a-f]{2}:/i,
+        /^fe80:/i,        // link-local
+    ];
+    return (net.isIPv4(ip) ? v4 : v6).some((re) => re.test(ip));
 }
+
+async function assertSafeWebhookUrl(rawUrl: string): Promise<void> {
+    let url: URL;
+    try {
+        url = new URL(rawUrl);
+    } catch {
+        throw new Error('Invalid webhook URL');
+    }
+
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        throw new Error(`Webhook URL scheme '${url.protocol}' is not allowed`);
+    }
+
+    const hostname = url.hostname;
+
+    // Reject literal private IPs immediately (no DNS needed)
+    if (net.isIP(hostname)) {
+        if (isPrivateIp(hostname)) {
+            throw new Error('Webhook URL targets a private/internal IP address');
+        }
+        return;
+    }
+
+    // Resolve hostname and reject if it maps to a private range
+    // (guards against DNS rebinding to internal services)
+    const { address } = await dns.lookup(hostname);
+    if (isPrivateIp(address)) {
+        throw new Error('Webhook URL resolves to a private/internal IP address');
+    }
+}
+// --------------------------------------------------------------------------
+
 
 interface WebhookResponse {
     message?: string;
@@ -72,12 +123,7 @@ export async function forwardToWebhook(
     message: string,
     metadata?: Record<string, unknown>
 ): Promise<{ success: boolean; response: WebhookResponse | null; error?: string; statusCode?: number }> {
-    const db = getDb();
-    const chatbotResult = db.exec(
-        `SELECT webhook_url, webhook_secret FROM chatbots WHERE id = ?`,
-        [chatbotId]
-    );
-    const chatbot = getOne<ChatbotWebhookInfo>(chatbotResult);
+    const chatbot = getCachedChatbot(chatbotId);
 
     if (!chatbot) {
         return { success: false, response: null, error: 'Chatbot not found', statusCode: 404 };
@@ -97,12 +143,19 @@ export async function forwardToWebhook(
 
     // Add signing header if secret is configured
     if (chatbot.webhook_secret) {
-        const crypto = await import('crypto');
         const signature = crypto
             .createHmac('sha256', chatbot.webhook_secret)
             .update(JSON.stringify(payload))
             .digest('hex');
         headers['X-ChatFlowUI-Signature'] = signature;
+    }
+
+    // SSRF guard — validate the webhook URL is not targeting internal infrastructure
+    try {
+        await assertSafeWebhookUrl(chatbot.webhook_url);
+    } catch (ssrfError) {
+        console.error('SSRF guard blocked webhook request:', (ssrfError as Error).message);
+        return { success: false, response: null, error: 'Webhook URL is not reachable', statusCode: 422 };
     }
 
     // Make request with timeout (30 seconds)
@@ -118,18 +171,17 @@ export async function forwardToWebhook(
             signal: controller.signal,
         });
     } catch (fetchError) {
-        clearTimeout(timeoutId);
         if ((fetchError as Error).name === 'AbortError') {
             console.error('Webhook timeout:', chatbot.webhook_url);
             return { success: false, response: null, error: 'Request timed out. The AI is taking too long to respond.', statusCode: 504 };
         }
         throw fetchError;
+    } finally {
+        clearTimeout(timeoutId);
     }
 
-    clearTimeout(timeoutId);
-
     if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = (await response.text()).slice(0, 512);
         console.error('Webhook error:', response.status, errorText);
 
         if (response.status === 429) {

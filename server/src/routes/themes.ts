@@ -5,6 +5,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import { v4 as uuid } from 'uuid';
 import { Theme, ThemeConfig } from '../types/index.js';
 import { z } from 'zod';
+import { invalidateThemeCache } from '../services/theme-cache.js';
 
 interface ThemeRow {
     id: string;
@@ -83,12 +84,24 @@ function transformTheme(row: ThemeRow): Theme {
     };
 }
 
-// List all themes (protected)
+// Lightweight row for list endpoint — omits full config JSON (2–8 KB per theme)
+interface ThemeListRow extends Omit<ThemeRow, 'config'> {}
+
+function transformThemeSummary(row: ThemeListRow): Omit<Theme, 'config'> {
+    return {
+        id: row.id,
+        name: row.name,
+        isPreset: row.is_preset === 1,
+        createdAt: row.created_at,
+    };
+}
+
+// List all themes — config column excluded to avoid N × multi-KB payloads
 router.get('/', authMiddleware, (_req: Request, res: Response) => {
     const db = getDb();
-    const result = db.exec('SELECT * FROM themes ORDER BY is_preset DESC, name ASC');
-    const rows = getAll<ThemeRow>(result);
-    res.json(rows.map(transformTheme));
+    const result = db.exec('SELECT id, name, is_preset, created_at FROM themes ORDER BY is_preset DESC, name ASC');
+    const rows = getAll<ThemeListRow>(result);
+    res.json(rows.map(transformThemeSummary));
 });
 
 // Get single theme (protected)
@@ -116,13 +129,15 @@ router.post('/', authMiddleware, (req: Request, res: Response) => {
     `, [id, config.name, JSON.stringify(config)]);
         saveDatabase();
 
-        const result = db.exec('SELECT * FROM themes WHERE id = ?', [id]);
-        const row = getOne<ThemeRow>(result);
-        if (!row) {
-            res.status(500).json({ error: 'Failed to create theme' });
-            return;
-        }
-        res.status(201).json(transformTheme(row));
+        const tsResult = db.exec('SELECT created_at FROM themes WHERE id = ?', [id]);
+        const tsRow = getOne<{ created_at: string }>(tsResult);
+        res.status(201).json(transformTheme({
+            id,
+            name: config.name,
+            is_preset: 0,
+            config: JSON.stringify(config),
+            created_at: tsRow?.created_at ?? new Date().toISOString(),
+        }));
     } catch (error) {
         if (error instanceof z.ZodError) {
             res.status(400).json({ error: 'Validation failed', details: error.errors });
@@ -137,8 +152,11 @@ router.post('/', authMiddleware, (req: Request, res: Response) => {
 router.put('/:id', authMiddleware, (req: Request, res: Response) => {
     try {
         const db = getDb();
-        const existingResult = db.exec('SELECT * FROM themes WHERE id = ?', [req.params.id]);
-        const existing = getOne<ThemeRow>(existingResult);
+        const existingResult = db.exec(
+            'SELECT is_preset, created_at FROM themes WHERE id = ?',
+            [req.params.id]
+        );
+        const existing = getOne<Pick<ThemeRow, 'is_preset' | 'created_at'>>(existingResult);
         if (!existing) {
             res.status(404).json({ error: 'Theme not found' });
             return;
@@ -155,14 +173,15 @@ router.put('/:id', authMiddleware, (req: Request, res: Response) => {
       UPDATE themes SET name = ?, config = ? WHERE id = ?
     `, [config.name, JSON.stringify(config), req.params.id]);
         saveDatabase();
+        invalidateThemeCache(req.params.id);
 
-        const result = db.exec('SELECT * FROM themes WHERE id = ?', [req.params.id]);
-        const row = getOne<ThemeRow>(result);
-        if (!row) {
-            res.status(500).json({ error: 'Failed to update theme' });
-            return;
-        }
-        res.json(transformTheme(row));
+        res.json(transformTheme({
+            id: req.params.id,
+            name: config.name,
+            is_preset: 0,
+            config: JSON.stringify(config),
+            created_at: existing.created_at,
+        }));
     } catch (error) {
         if (error instanceof z.ZodError) {
             res.status(400).json({ error: 'Validation failed', details: error.errors });
@@ -191,6 +210,7 @@ router.delete('/:id', authMiddleware, (req: Request, res: Response) => {
 
     db.run('DELETE FROM themes WHERE id = ?', [req.params.id]);
     saveDatabase();
+    invalidateThemeCache(req.params.id);
     res.json({ success: true });
 });
 
@@ -215,13 +235,15 @@ router.post('/:id/duplicate', authMiddleware, (req: Request, res: Response) => {
     `, [id, config.name, JSON.stringify(config)]);
         saveDatabase();
 
-        const result = db.exec('SELECT * FROM themes WHERE id = ?', [id]);
-        const row = getOne<ThemeRow>(result);
-        if (!row) {
-            res.status(500).json({ error: 'Failed to duplicate theme' });
-            return;
-        }
-        res.status(201).json(transformTheme(row));
+        const tsResult = db.exec('SELECT created_at FROM themes WHERE id = ?', [id]);
+        const tsRow = getOne<{ created_at: string }>(tsResult);
+        res.status(201).json(transformTheme({
+            id,
+            name: config.name,
+            is_preset: 0,
+            config: JSON.stringify(config),
+            created_at: tsRow?.created_at ?? new Date().toISOString(),
+        }));
     } catch (error) {
         console.error('Duplicate theme error:', error);
         res.status(500).json({ error: 'Internal server error' });

@@ -11,9 +11,11 @@ async function verifyAndReset() {
     const password = config.adminPassword; // From .credentials.json or env
 
     console.log('[DEBUG] Checking admin user:', username);
-    console.log('[DEBUG] Config password:', password);
 
-    const result = db.exec('SELECT * FROM users WHERE username = ?', [username]);
+    const result = db.exec(
+        'SELECT id, password_hash FROM users WHERE username = ?',
+        [username]
+    );
 
     // Check if user exists
     if (!result || result.length === 0 || !result[0].values || result[0].values.length === 0) {
@@ -33,13 +35,8 @@ async function verifyAndReset() {
         return;
     }
 
-    const usageRow = result[0];
-    const columns = usageRow.columns;
-    const values = usageRow.values[0];
-
-    // Find column index for password_hash
-    const hashIdx = columns.indexOf('password_hash');
-    const dbHash = values[hashIdx] as string;
+    // Use column names directly — no fragile index arithmetic
+    const dbHash = result[0].values[0][1] as string; // index 1 = password_hash
 
     console.log('[DEBUG] DB Hash exists, length:', dbHash.length);
 
@@ -47,7 +44,6 @@ async function verifyAndReset() {
 
     if (valid) {
         console.log('\n[SUCCESS] Password in .credentials.json MATCHES the DB hash!');
-        console.log('Login SHOULD work with password:', password);
         console.log('If login still fails, check cookie/CORS settings.');
     } else {
         console.log('\n[ERROR] Password in .credentials.json DOES NOT MATCH DB hash!');

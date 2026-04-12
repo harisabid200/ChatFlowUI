@@ -1,6 +1,7 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
-import { getDb } from '../db/index.js';
+import { getCachedChatbot, isOriginAllowedByAnyChatbot } from './chatbot-cache.js';
+import { isOriginInList, globalAllowList } from '../utils/origin.js';
 import { config } from '../config.js';
 
 interface SocketService {
@@ -8,76 +9,48 @@ interface SocketService {
 }
 
 let socketService: SocketService | null = null;
+let sessionSweepInterval: ReturnType<typeof setInterval> | null = null;
 
 export function initializeWebSocket(httpServer: HttpServer): SocketService {
     const io = new SocketIOServer(httpServer, {
         cors: {
             origin: (requestOrigin, callback) => {
                 // 1. Allow no origin (server-to-server, mobile apps, Postman)
+                // Security posture: non-browser clients (curl, scripts, mobile apps)
+                // do not send the Origin header. For the current threat model
+                // (single-admin, internally hosted chatbot) this is acceptable.
+                // In a multi-tenant / public deployment, add an API key requirement
+                // here for no-origin connections to prevent unauthenticated socket use.
                 if (!requestOrigin) {
                     return callback(null, true);
                 }
 
                 // 2. Allow Admin Origin
-                if (process.env.ADMIN_ORIGIN === requestOrigin) {
+                if (config.adminOrigin && config.adminOrigin === requestOrigin) {
                     return callback(null, true);
                 }
 
-                // 3. Allow Global Allowed Origins
-                if (config.corsAllowedOrigins) {
-                    const globalAllowed = config.corsAllowedOrigins.split(',').map(o => o.trim());
-                    const normalizedOrigin = requestOrigin.endsWith('/') ? requestOrigin.slice(0, -1) : requestOrigin;
-                    const isAllowed = globalAllowed.some(allowed => {
-                        const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
-                        return normalizedOrigin === normalizedAllowed;
-                    });
-                    if (isAllowed) {
-                        return callback(null, true);
-                    }
+                if (globalAllowList.length > 0 && isOriginInList(requestOrigin, globalAllowList)) {
+                    return callback(null, true);
                 }
 
                 // 4. Allow Localhost in Development
-                if (process.env.NODE_ENV !== 'production') {
+                if (config.nodeEnv !== 'production') {
                     if (requestOrigin.includes('localhost') || requestOrigin.includes('127.0.0.1')) {
                         return callback(null, true);
                     }
                 }
 
                 // 5. Allow Server's Own Origin (Self)
-                const host = process.env.HOST || 'localhost';
-                const port = process.env.PORT || 7861;
-                if (requestOrigin === `http://${host}:${port}` || requestOrigin === `https://${host}:${port}`) {
+                if (requestOrigin === `http://${config.host}:${config.port}` || requestOrigin === `https://${config.host}:${config.port}`) {
                     return callback(null, true);
                 }
 
-                // 6. Check Database for Chatbot-specific allowed origins
+                // 6. Check chatbot-specific allowed origins
                 try {
-                    const db = getDb();
-                    // Check if ANY chatbot allows this origin
-                    const result = db.exec('SELECT allowed_origins FROM chatbots');
-
-                    if (result.length > 0 && result[0].values.length > 0) {
-                        const normalizedOrigin = requestOrigin.endsWith('/') ? requestOrigin.slice(0, -1) : requestOrigin;
-
-                        const isAllowedByChatbot = result[0].values.some(row => {
-                            try {
-                                const allowedOrigins = JSON.parse(row[0] as string) as string[];
-                                return allowedOrigins.some(allowed => {
-                                    const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
-                                    if (allowed.startsWith('*.')) {
-                                        const domain = allowed.slice(2);
-                                        return normalizedOrigin.endsWith(domain) || normalizedOrigin === `https://${domain}` || normalizedOrigin === `http://${domain}`;
-                                    }
-                                    return normalizedOrigin === normalizedAllowed;
-                                });
-                            } catch {
-                                return false;
-                            }
-                        });
-
-                        if (isAllowedByChatbot) {
-                            return callback(null, true);
-                        }
+                    const normalizedOrigin = requestOrigin.endsWith('/') ? requestOrigin.slice(0, -1) : requestOrigin;
+                    if (isOriginAllowedByAnyChatbot(normalizedOrigin)) {
+                        return callback(null, true);
                     }
                 } catch (err) {
                     console.error('Error checking WebSocket origin against DB:', err);
@@ -92,7 +65,14 @@ export function initializeWebSocket(httpServer: HttpServer): SocketService {
     });
 
     // Track connected sessions
-    const sessions = new Map<string, Set<string>>(); // chatbotId:sessionId -> socket IDs
+    const sessions = new Map<string, Set<string>>();
+
+    // Periodic cleanup of empty session entries (every 5 minutes)
+    sessionSweepInterval = setInterval(() => {
+        sessions.forEach((sockets, key) => {
+            if (sockets.size === 0) sessions.delete(key);
+        });
+    }, 5 * 60 * 1000);
 
     io.on('connection', (socket: Socket) => {
         console.log('Client connected:', socket.id);
@@ -104,52 +84,34 @@ export function initializeWebSocket(httpServer: HttpServer): SocketService {
 
             // Validate chatbot exists and check allowed origins
             try {
-                const db = getDb();
-                const result = db.exec('SELECT id, allowed_origins FROM chatbots WHERE id = ?', [chatbotId]);
-                if (result.length === 0 || result[0].values.length === 0) {
+                const chatbotData = getCachedChatbot(chatbotId);
+                if (!chatbotData) {
                     socket.emit('error', { message: 'Invalid chatbot' });
                     return;
                 }
 
-                // Check allowed origins
-                const row = result[0].values[0];
-                const allowedOriginsJson = row[1] as string;
-                let allowedOrigins: string[] = [];
-                try {
-                    allowedOrigins = JSON.parse(allowedOriginsJson);
-                } catch {
-                    allowedOrigins = [];
-                }
-
                 const origin = socket.handshake.headers.origin;
-                // If origin is present, validate it
                 if (origin) {
-                    const isAllowed = allowedOrigins.some(allowed => {
-                        // Support wildcard subdomains
-                        if (allowed.startsWith('*.')) {
-                            const domain = allowed.slice(2);
-                            return origin.endsWith(domain) || origin === `https://${domain}` || origin === `http://${domain}`;
-                        }
-                        return origin === allowed;
-                    });
+                    let allowedOrigins: string[] = [];
+                    try {
+                        allowedOrigins = JSON.parse(chatbotData.allowed_origins);
+                    } catch {
+                        allowedOrigins = [];
+                    }
+
+                    const isAllowed = isOriginInList(origin, allowedOrigins);
 
                     // Also allow if it matches the server's own domain (same-origin) or configured ADMIN_ORIGIN
                     // This ensures the Admin UI (Preview/Test) can always connect
-                    const adminOrigin = process.env.ADMIN_ORIGIN;
-                    const isSelfOrAdmin = origin === adminOrigin ||
-                        origin === `http://${process.env.HOST || 'localhost'}:${process.env.PORT || 7861}` ||
+                    const isSelfOrAdmin = origin === config.adminOrigin ||
+                        origin === `http://${config.host}:${config.port}` ||
+                        origin === `https://${config.host}:${config.port}` ||
                         // In development, allow localhost
-                        (process.env.NODE_ENV !== 'production' && (origin.includes('localhost') || origin.includes('127.0.0.1')));
+                        (config.nodeEnv !== 'production' && (origin.includes('localhost') || origin.includes('127.0.0.1')));
 
-                    // Check against Global CORS Allowed Origins
                     let isGlobalAllowed = false;
-                    if (config.corsAllowedOrigins) {
-                        const globalAllowed = config.corsAllowedOrigins.split(',').map(o => o.trim());
-                        const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-                        isGlobalAllowed = globalAllowed.some(allowed => {
-                            const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
-                            return normalizedOrigin === normalizedAllowed;
-                        });
+                    if (globalAllowList.length > 0) {
+                        isGlobalAllowed = isOriginInList(origin, globalAllowList);
                     }
 
                     if (!isAllowed && !isSelfOrAdmin && !isGlobalAllowed) {
@@ -227,4 +189,8 @@ export function initializeWebSocket(httpServer: HttpServer): SocketService {
 
 export function getSocketService(): SocketService | null {
     return socketService;
+}
+
+export function getSessionSweepInterval(): ReturnType<typeof setInterval> | null {
+    return sessionSweepInterval;
 }

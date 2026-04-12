@@ -2,20 +2,22 @@ import initSqlJs, { Database } from 'sql.js';
 import { config } from '../config.js';
 import { dirname } from 'path';
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'fs';
+import { writeFile } from 'fs/promises';
 
 let db: Database | null = null;
+let _autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let _pendingSave = false;
 
-// Ensure database directory exists
 const dbDir = dirname(config.databasePath);
 if (!existsSync(dbDir)) {
   mkdirSync(dbDir, { recursive: true });
 }
 
-// Initialize sql.js and load/create database
 export async function initializeDatabase(): Promise<Database> {
+  if (db) return db;
+
   const SQL = await initSqlJs();
 
-  // Try to load existing database
   try {
     if (existsSync(config.databasePath)) {
       const fileBuffer = readFileSync(config.databasePath);
@@ -27,9 +29,7 @@ export async function initializeDatabase(): Promise<Database> {
     db = new SQL.Database();
   }
 
-  // Create schema
   db.run(`
-    -- Users table
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
@@ -39,7 +39,6 @@ export async function initializeDatabase(): Promise<Database> {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- Themes table
     CREATE TABLE IF NOT EXISTS themes (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -48,7 +47,6 @@ export async function initializeDatabase(): Promise<Database> {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- Chatbots table
     CREATE TABLE IF NOT EXISTS chatbots (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -66,45 +64,32 @@ export async function initializeDatabase(): Promise<Database> {
       FOREIGN KEY (theme_id) REFERENCES themes(id)
     );
 
-    -- Rate Limits table
-    CREATE TABLE IF NOT EXISTS rate_limits (
-      key TEXT PRIMARY KEY,
-      points INTEGER NOT NULL,
-      expiry INTEGER NOT NULL
-    );
-
-    -- Create indexes
     CREATE INDEX IF NOT EXISTS idx_chatbots_theme ON chatbots(theme_id);
   `);
 
-  // Migration: Add token_version if missing
+  // Migration: add token_version column for existing databases
   try {
-    const columns = db.exec("PRAGMA table_info(users)");
+    const columns = db.exec('PRAGMA table_info(users)');
     const hasTokenVersion = columns.length > 0 && columns[0].values.some((col) => col[1] === 'token_version');
-
     if (!hasTokenVersion) {
       console.log('🔄 Migrating users table: adding token_version column...');
-      db.run("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1");
-      console.log('✅ Migration complete: added token_version');
+      db.run('ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1');
+      console.log('✅ Migration complete');
     }
   } catch (e) {
     console.error('Migration error:', e);
   }
 
-  // Cleanup expired rate limits on startup
-  try {
-    db.run("DELETE FROM rate_limits WHERE expiry < ?", [Date.now()]);
-  } catch (e) {
-    console.error('Failed to cleanup rate limits:', e);
+  // Re-arm after each save completes so writes never overlap
+  async function scheduleAutoSave() {
+    await saveDatabase();
+    _autoSaveTimer = setTimeout(scheduleAutoSave, 30000);
   }
-
-  // Save initial database
-  saveDatabase();
+  scheduleAutoSave();
 
   return db;
 }
 
-// Get database instance (throws if not initialized)
 export function getDb(): Database {
   if (!db) {
     throw new Error('Database not initialized. Call initializeDatabase() first.');
@@ -112,31 +97,28 @@ export function getDb(): Database {
   return db;
 }
 
-// Save database to file
-export function saveDatabase(): void {
+export async function saveDatabase(): Promise<void> {
   if (!db) return;
+  if (_pendingSave) return;
+  _pendingSave = true;
   try {
     const data = db.export();
-    const buffer = Buffer.from(data);
-    writeFileSync(config.databasePath, buffer);
+    await writeFile(config.databasePath, Buffer.from(data));
   } catch (error) {
     console.error('Failed to save database:', error);
+  } finally {
+    _pendingSave = false;
   }
 }
 
-// Auto-save every 30 seconds
-setInterval(saveDatabase, 30000);
+export function getAutoSaveInterval(): ReturnType<typeof setTimeout> | null {
+  return _autoSaveTimer;
+}
 
-// Save on process exit
-process.on('exit', saveDatabase);
-
-// Handle graceful shutdown for signals (Docker stop, Ctrl+C)
-const handleShutdown = () => {
-  console.log('🛑 Received kill signal, saving database...');
-  saveDatabase();
-  console.log('✅ Database saved, exiting.');
-  process.exit(0);
-};
-
-process.on('SIGINT', handleShutdown);
-process.on('SIGTERM', handleShutdown);
+// Synchronous fallback on process exit — async saveDatabase cannot be awaited here
+process.on('exit', () => {
+  if (!db) return;
+  try {
+    writeFileSync(config.databasePath, Buffer.from(db.export()));
+  } catch { /* best-effort */ }
+});

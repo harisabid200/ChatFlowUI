@@ -1,34 +1,16 @@
 import { Router, Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
-import { getDb } from '../db/index.js';
-import { getOne } from '../db/helpers.js';
+import { getCachedChatbot } from '../services/chatbot-cache.js';
 import { getSocketService } from '../services/websocket.js';
-
-const webhookLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 60,
-    message: { error: 'Too many requests' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
+import { webhookLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
 router.use(webhookLimiter);
 
-interface ChatbotRow {
-    id: string;
-    webhook_secret: string | null;
-}
-
 // Receive response from n8n webhook
 router.post('/:chatbotId/response', async (req: Request, res: Response) => {
     try {
-        const db = getDb();
-        const chatbotResult = db.exec(`
-      SELECT id, webhook_secret FROM chatbots WHERE id = ?
-    `, [req.params.chatbotId]);
-        const chatbot = getOne<ChatbotRow>(chatbotResult);
+        const chatbot = getCachedChatbot(req.params.chatbotId);
 
         if (!chatbot) {
             res.status(404).json({ error: 'Chatbot not found' });
@@ -42,15 +24,20 @@ router.post('/:chatbotId/response', async (req: Request, res: Response) => {
                 res.status(401).json({ error: 'Missing signature' });
                 return;
             }
+            // Validate format before comparison — must be exactly 64 hex chars (sha256 hex digest)
+            if (!/^[0-9a-f]{64}$/i.test(signature)) {
+                res.status(401).json({ error: 'Invalid signature' });
+                return;
+            }
             const expectedSignature = crypto
                 .createHmac('sha256', chatbot.webhook_secret)
                 .update(JSON.stringify(req.body))
                 .digest('hex');
 
-            // Timing-safe comparison to prevent timing attacks
-            const sigBuf = Buffer.from(signature, 'utf-8');
-            const expBuf = Buffer.from(expectedSignature, 'utf-8');
-            if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+            // Compare decoded hex bytes — both buffers are 32 bytes (256-bit HMAC)
+            const sigBuf = Buffer.from(signature, 'hex');
+            const expBuf = Buffer.from(expectedSignature, 'hex');
+            if (!crypto.timingSafeEqual(sigBuf, expBuf)) {
                 res.status(401).json({ error: 'Invalid signature' });
                 return;
             }
@@ -66,7 +53,13 @@ router.post('/:chatbotId/response', async (req: Request, res: Response) => {
         }
 
         // Extract message flexibly from various n8n response shapes
-        const message = body.message || body.text || body.output || body.response || '';
+        const rawMessage = body.message || body.text || body.output || body.response || '';
+        // Cap length — the body limit is 64 KB but a single message field could be large.
+        // Keeping messages ≤ 8192 chars prevents oversized socket payloads.
+        const MAX_MSG = 8192;
+        const message = typeof rawMessage === 'string' && rawMessage.length > MAX_MSG
+            ? rawMessage.slice(0, MAX_MSG) + '…'
+            : rawMessage;
         const quickReplies = body.quickReplies || body.quick_replies || [];
         const metadata = body.metadata || {};
 

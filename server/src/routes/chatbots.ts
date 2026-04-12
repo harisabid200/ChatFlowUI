@@ -6,6 +6,7 @@ import { v4 as uuid } from 'uuid';
 import { Chatbot } from '../types/index.js';
 import { z } from 'zod';
 import { forwardToWebhook } from '../services/webhook-forwarder.js';
+import { getCachedChatbot, invalidateChatbotCache } from '../services/chatbot-cache.js';
 import { config } from '../config.js';
 
 interface ChatbotRow {
@@ -24,6 +25,9 @@ interface ChatbotRow {
     updated_at: string;
 }
 
+// Lightweight row type for the list endpoint — excludes logo columns (up to 2MB each)
+interface ChatbotListRow extends Omit<ChatbotRow, 'launcher_logo' | 'header_logo'> {}
+
 const router = Router();
 
 // Apply auth to all routes
@@ -34,7 +38,12 @@ const chatbotSchema = z.object({
     name: z.string().min(1).max(100),
     webhookUrl: z.string().url(),
     webhookSecret: z.string().optional(),
-    allowedOrigins: z.array(z.string()).min(1),
+    allowedOrigins: z.array(
+        z.string().regex(
+            /^(https?:\/\/.+|\*\..+)$/,
+            'Each origin must be a valid http/https URL or a wildcard domain (e.g. *.example.com)'
+        )
+    ).min(1),
     themeId: z.string().optional(),
     customCss: z.string().optional(),
     preChatForm: z.object({
@@ -58,8 +67,8 @@ const chatbotSchema = z.object({
         typingIndicator: z.boolean(),
         showTimestamps: z.boolean(),
     }),
-    launcherLogo: z.string().optional(),
-    headerLogo: z.string().optional(),
+    launcherLogo: z.string().max(2_000_000).optional(),
+    headerLogo: z.string().max(2_000_000).optional(),
 });
 
 // Helper to transform DB row to API response
@@ -81,18 +90,44 @@ function transformChatbot(row: ChatbotRow): Chatbot {
     };
 }
 
-// List all chatbots
+// Helper — summary transform for list view (no logos, reduces payload dramatically)
+function transformChatbotSummary(row: ChatbotListRow): Chatbot {
+    return {
+        id: row.id,
+        name: row.name,
+        webhookUrl: row.webhook_url,
+        webhookSecret: row.webhook_secret || undefined,
+        allowedOrigins: JSON.parse(row.allowed_origins),
+        themeId: row.theme_id || undefined,
+        customCss: row.custom_css || undefined,
+        preChatForm: row.pre_chat_form ? JSON.parse(row.pre_chat_form) : undefined,
+        settings: JSON.parse(row.settings),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+    };
+}
+
+// List all chatbots — logos excluded to avoid N × ~4MB payloads on every admin page load
 router.get('/', (_req: Request, res: Response) => {
     const db = getDb();
-    const result = db.exec('SELECT * FROM chatbots ORDER BY created_at DESC');
-    const rows = getAll<ChatbotRow>(result);
-    res.json(rows.map(transformChatbot));
+    const result = db.exec(
+        `SELECT id, name, webhook_url, webhook_secret, allowed_origins, theme_id,
+                custom_css, pre_chat_form, settings, created_at, updated_at
+         FROM chatbots ORDER BY created_at DESC`
+    );
+    const rows = getAll<ChatbotListRow>(result);
+    res.json(rows.map(transformChatbotSummary));
 });
 
 // Get single chatbot
 router.get('/:id', (req: Request, res: Response) => {
     const db = getDb();
-    const result = db.exec('SELECT * FROM chatbots WHERE id = ?', [req.params.id]);
+    const result = db.exec(
+        `SELECT id, name, webhook_url, webhook_secret, allowed_origins, theme_id,
+                custom_css, pre_chat_form, settings, launcher_logo, header_logo,
+                created_at, updated_at FROM chatbots WHERE id = ?`,
+        [req.params.id]
+    );
     const row = getOne<ChatbotRow>(result);
     if (!row) {
         res.status(404).json({ error: 'Chatbot not found' });
@@ -128,13 +163,28 @@ router.post('/', (req: Request, res: Response) => {
         ]);
         saveDatabase();
 
-        const result = db.exec('SELECT * FROM chatbots WHERE id = ?', [id]);
-        const row = getOne<ChatbotRow>(result);
-        if (!row) {
-            res.status(500).json({ error: 'Failed to create chatbot' });
-            return;
-        }
-        res.status(201).json(transformChatbot(row));
+        // Fetch timestamps from DB so the response matches what is stored
+        // (CURRENT_TIMESTAMP is set by SQLite, not the JS clock)
+        const tsResult = db.exec('SELECT created_at, updated_at FROM chatbots WHERE id = ?', [id]);
+        const tsRow = getOne<{ created_at: string; updated_at: string }>(tsResult);
+        const createdAt = tsRow?.created_at ?? new Date().toISOString();
+        const updatedAt = tsRow?.updated_at ?? createdAt;
+
+        res.status(201).json(transformChatbot({
+            id,
+            name: data.name,
+            webhook_url: data.webhookUrl,
+            webhook_secret: data.webhookSecret || null,
+            allowed_origins: JSON.stringify(data.allowedOrigins),
+            theme_id: data.themeId || 'default',
+            custom_css: data.customCss || null,
+            pre_chat_form: data.preChatForm ? JSON.stringify(data.preChatForm) : null,
+            settings: JSON.stringify(data.settings),
+            launcher_logo: data.launcherLogo || null,
+            header_logo: data.headerLogo || null,
+            created_at: createdAt,
+            updated_at: updatedAt,
+        }));
     } catch (error) {
         if (error instanceof z.ZodError) {
             res.status(400).json({ error: 'Validation failed', details: error.errors });
@@ -149,8 +199,9 @@ router.post('/', (req: Request, res: Response) => {
 router.put('/:id', (req: Request, res: Response) => {
     try {
         const db = getDb();
-        const existingResult = db.exec('SELECT id FROM chatbots WHERE id = ?', [req.params.id]);
-        if (existingResult.length === 0 || existingResult[0].values.length === 0) {
+        const existingResult = db.exec('SELECT id, created_at FROM chatbots WHERE id = ?', [req.params.id]);
+        const existing = getOne<{ id: string; created_at: string }>(existingResult);
+        if (!existing) {
             res.status(404).json({ error: 'Chatbot not found' });
             return;
         }
@@ -178,14 +229,28 @@ router.put('/:id', (req: Request, res: Response) => {
             req.params.id,
         ]);
         saveDatabase();
+        invalidateChatbotCache(req.params.id);
 
-        const result = db.exec('SELECT * FROM chatbots WHERE id = ?', [req.params.id]);
-        const row = getOne<ChatbotRow>(result);
-        if (!row) {
-            res.status(500).json({ error: 'Failed to update chatbot' });
-            return;
-        }
-        res.json(transformChatbot(row));
+        // Fetch updated_at from DB — CURRENT_TIMESTAMP is set by SQLite, not the JS clock
+        const updResult = db.exec('SELECT updated_at FROM chatbots WHERE id = ?', [req.params.id]);
+        const updRow = getOne<{ updated_at: string }>(updResult);
+        const updatedAt = updRow?.updated_at ?? new Date().toISOString();
+
+        res.json(transformChatbot({
+            id: req.params.id,
+            name: data.name,
+            webhook_url: data.webhookUrl,
+            webhook_secret: data.webhookSecret || null,
+            allowed_origins: JSON.stringify(data.allowedOrigins),
+            theme_id: data.themeId || 'default',
+            custom_css: data.customCss || null,
+            pre_chat_form: data.preChatForm ? JSON.stringify(data.preChatForm) : null,
+            settings: JSON.stringify(data.settings),
+            launcher_logo: data.launcherLogo || null,
+            header_logo: data.headerLogo || null,
+            created_at: existing.created_at,
+            updated_at: updatedAt,
+        }));
     } catch (error) {
         if (error instanceof z.ZodError) {
             res.status(400).json({ error: 'Validation failed', details: error.errors });
@@ -198,28 +263,31 @@ router.put('/:id', (req: Request, res: Response) => {
 
 // Delete chatbot
 router.delete('/:id', (req: Request, res: Response) => {
-    const db = getDb();
-    const existingResult = db.exec('SELECT id FROM chatbots WHERE id = ?', [req.params.id]);
-    if (existingResult.length === 0 || existingResult[0].values.length === 0) {
+    // getCachedChatbot always falls through to the DB on a cache miss,
+    // so this is a real DB existence check \u2014 not a cache-only guard.
+    if (!getCachedChatbot(req.params.id)) {
         res.status(404).json({ error: 'Chatbot not found' });
         return;
     }
+    const db = getDb();
     db.run('DELETE FROM chatbots WHERE id = ?', [req.params.id]);
     saveDatabase();
+    invalidateChatbotCache(req.params.id);
     res.json({ success: true });
 });
 
 // Get embed code
 router.get('/:id/embed', (req: Request, res: Response) => {
-    const db = getDb();
-    const result = db.exec('SELECT id FROM chatbots WHERE id = ?', [req.params.id]);
-    if (result.length === 0 || result[0].values.length === 0) {
+    const chatbot = getCachedChatbot(req.params.id);
+    if (!chatbot) {
         res.status(404).json({ error: 'Chatbot not found' });
         return;
     }
 
-    // Construct base URL with BASE_PATH support
-    let baseUrl = `${req.protocol}://${req.get('host')}`;
+    // Use PUBLIC_URL from config if set — this avoids Host Header injection where an
+    // attacker-controlled Host header could poison the generated embed snippet.
+    // Falls back to the request host for local dev convenience (set PUBLIC_URL in production).
+    let baseUrl = config.publicUrl || `${req.protocol}://${req.get('host')}`;
 
     // Append BASE_PATH if set and not just '/'
     if (config.basePath && config.basePath !== '/') {
@@ -255,11 +323,13 @@ router.post('/:id/test-message', async (req: Request, res: Response) => {
             return;
         }
 
-        // Verify chatbot exists
-        const db = getDb();
-        const existingResult = db.exec('SELECT id FROM chatbots WHERE id = ?', [req.params.id]);
-        if (existingResult.length === 0 || existingResult[0].values.length === 0) {
-            res.status(404).json({ error: 'Chatbot not found' });
+        if (typeof sessionId !== 'string' || sessionId.length > 256) {
+            res.status(400).json({ error: 'sessionId must be a string of at most 256 characters' });
+            return;
+        }
+
+        if (typeof message !== 'string' || message.length > 4096) {
+            res.status(400).json({ error: 'Message too long. Maximum 4096 characters allowed.' });
             return;
         }
 

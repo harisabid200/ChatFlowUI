@@ -1,5 +1,3 @@
-import { useAuthStore } from '../stores/auth';
-
 // Get API base path from window.__BASE_PATH__ (set at runtime)
 const getApiBase = () => {
     const basePath = (window as any).__BASE_PATH__ || '/';
@@ -17,18 +15,9 @@ interface ApiError {
 
 class ApiClient {
     private getHeaders(): HeadersInit {
-        const headers: HeadersInit = {
+        return {
             'Content-Type': 'application/json',
         };
-
-        // Token is kept in memory only (not persisted to localStorage)
-        // Used for dev mode cross-port auth; production uses httpOnly cookie
-        const token = useAuthStore.getState().token;
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        return headers;
     }
 
     private async handleResponse<T>(response: Response): Promise<T> {
@@ -92,7 +81,7 @@ export const api = new ApiClient();
 // Auth API
 export const authApi = {
     login: (username: string, password: string) =>
-        api.post<{ token: string; user: { id: number; username: string; mustChangePassword: boolean } }>(
+        api.post<{ user: { id: number; username: string; mustChangePassword: boolean } }>(
             '/auth/login',
             { username, password }
         ),

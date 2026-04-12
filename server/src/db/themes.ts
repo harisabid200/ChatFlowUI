@@ -205,20 +205,10 @@ export function seedPresetThemes(): void {
     const db = getDb();
 
     for (const theme of presetThemes) {
-        // Check if theme exists
-        const existing = db.exec(`SELECT id FROM themes WHERE id = ?`, [theme.id]);
-        if (existing.length === 0 || existing[0].values.length === 0) {
-            db.run(
-                `INSERT INTO themes (id, name, is_preset, config) VALUES (?, ?, 1, ?)`,
-                [theme.id, theme.config.name, JSON.stringify(theme.config)]
-            );
-        } else {
-            // Force update presets to ensure new defaults (like color fixes) apply
-            db.run(
-                `UPDATE themes SET config = ? WHERE id = ? AND is_preset = 1`,
-                [JSON.stringify(theme.config), theme.id]
-            );
-        }
+        db.run(
+            `INSERT OR REPLACE INTO themes (id, name, is_preset, config) VALUES (?, ?, 1, ?)`,
+            [theme.id, theme.config.name, JSON.stringify(theme.config)]
+        );
     }
     saveDatabase();
 }

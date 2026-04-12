@@ -148,6 +148,7 @@ export interface JwtPayload {
     userId: number;
     username: string;
     tokenVersion: number;
+    mustChangePassword: boolean;
     iac?: number;
     exp?: number;
 }

@@ -34,7 +34,7 @@ if (existsSync(credentialsPath)) {
 
 // Generate credentials if not exists
 function generatePassword(length = 12): string {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#%^&*-_=+';
     const charsLength = chars.length;
     const maxValid = 256 - (256 % charsLength);
     let password = '';
@@ -69,7 +69,7 @@ if (isFirstRun) {
     console.log('🔑 FIRST RUN - AUTO-GENERATED CREDENTIALS');
     console.log('='.repeat(60));
     console.log(`   Username: ${process.env.ADMIN_USERNAME || 'admin'}`);
-    console.log(`   Password: ${storedCredentials.adminPassword}`);
+    process.stderr.write(`   Password: ${storedCredentials.adminPassword}\n`);
     console.log('='.repeat(60));
     console.log('⚠️  Save these credentials! They are stored in:');
     console.log(`   ${credentialsPath}`);
@@ -81,14 +81,18 @@ const configSchema = z.object({
     port: z.number().default(7861),
     host: z.string().default('0.0.0.0'),
     nodeEnv: z.enum(['development', 'production', 'test']).default('development'),
-    jwtSecret: z.string().min(32),
+    // Minimum 64 chars: matches the auto-generated 64-char hex string (32 random bytes).
+    // A plain ASCII string of only 32 chars would pass min(32) but have far less entropy.
+    jwtSecret: z.string().min(64, 'JWT_SECRET must be at least 64 characters (use: openssl rand -hex 32)'),
     adminUsername: z.string().default('admin'),
-    adminPassword: z.string().min(6),
+    adminPassword: z.string().min(12),
     databasePath: z.string().default(resolve(dataDir, 'chatflowui.db')),
     rateLimitWindowMs: z.number().default(60000),
     rateLimitMax: z.number().default(100),
     basePath: z.string().default('/'),
     corsAllowedOrigins: z.string().optional(),
+    adminOrigin: z.string().url().optional(),
+    publicUrl: z.string().url().optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -106,6 +110,8 @@ export const config: Config = configSchema.parse({
     rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
     basePath: process.env.BASE_PATH || '/',
     corsAllowedOrigins: process.env.CORS_ALLOWED_ORIGINS,
+    adminOrigin: process.env.ADMIN_ORIGIN || undefined,
+    publicUrl: process.env.PUBLIC_URL || undefined,
 });
 
 export { isFirstRun };
