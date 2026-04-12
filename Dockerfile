@@ -9,16 +9,19 @@ COPY admin/package*.json ./admin/
 COPY widget/package*.json ./widget/
 COPY tsconfig.base.json ./
 
-# Install dependencies (use ci for reproducible builds)
-RUN npm ci
+# Install ALL dependencies (including devDeps needed for build tools)
+RUN npm ci --include=dev
 
 # Copy source
 COPY server ./server
 COPY admin ./admin
 COPY widget ./widget
 
-# Build all packages
-RUN npm run build
+# Build each workspace explicitly so node_modules/.bin is always resolved
+# from the repo root (avoids alpine PATH issues with npm workspace scripts)
+RUN ./node_modules/.bin/tsc -p server/tsconfig.json
+RUN ./node_modules/.bin/vite build --config admin/vite.config.ts
+RUN ./node_modules/.bin/vite build --config widget/vite.config.ts
 
 # Production stage
 FROM node:20-alpine AS production
