@@ -1,3 +1,5 @@
+import { useAuthStore } from '../stores/auth';
+
 // Get API base path from window.__BASE_PATH__ (set at runtime)
 const getApiBase = () => {
     const basePath = (window as any).__BASE_PATH__ || '/';

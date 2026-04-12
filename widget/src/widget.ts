@@ -814,8 +814,7 @@ export class ChatWidget {
         this.messagesContainer.appendChild(form);
 
         // Handle submit
-        const submitBtn = form.querySelector('.cfui-prechat-submit');
-        submitBtn?.addEventListener('click', () => {
+        submitBtn.addEventListener('click', () => {
             const metadata: Record<string, string> = {};
             let isValid = true;
 
