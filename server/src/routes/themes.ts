@@ -84,24 +84,13 @@ function transformTheme(row: ThemeRow): Theme {
     };
 }
 
-// Lightweight row for list endpoint — omits full config JSON (2–8 KB per theme)
-interface ThemeListRow extends Omit<ThemeRow, 'config'> {}
 
-function transformThemeSummary(row: ThemeListRow): Omit<Theme, 'config'> {
-    return {
-        id: row.id,
-        name: row.name,
-        isPreset: row.is_preset === 1,
-        createdAt: row.created_at,
-    };
-}
-
-// List all themes — config column excluded to avoid N × multi-KB payloads
+// List all themes — full config included so ThemeCard can render color swatches
 router.get('/', authMiddleware, (_req: Request, res: Response) => {
     const db = getDb();
-    const result = db.exec('SELECT id, name, is_preset, created_at FROM themes ORDER BY is_preset DESC, name ASC');
-    const rows = getAll<ThemeListRow>(result);
-    res.json(rows.map(transformThemeSummary));
+    const result = db.exec('SELECT * FROM themes ORDER BY is_preset DESC, name ASC');
+    const rows = getAll<ThemeRow>(result);
+    res.json(rows.map(transformTheme));
 });
 
 // Get single theme (protected)

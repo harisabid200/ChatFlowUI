@@ -40,10 +40,10 @@ const chatbotSchema = z.object({
     webhookSecret: z.string().optional(),
     allowedOrigins: z.array(
         z.string().regex(
-            /^(https?:\/\/.+|\*\..+)$/,
-            'Each origin must be a valid http/https URL or a wildcard domain (e.g. *.example.com)'
+            /^(https?:\/\/(localhost|[\w.-]+)(:\d+)?(\/.*)?|\*\..+)$/,
+            'Each origin must be a valid http/https URL (e.g. https://example.com or http://localhost:3000) or a wildcard domain (e.g. *.example.com)'
         )
-    ).min(1),
+    ).min(1, 'At least one allowed origin is required'),
     themeId: z.string().optional(),
     customCss: z.string().optional(),
     preChatForm: z.object({
@@ -187,7 +187,11 @@ router.post('/', (req: Request, res: Response) => {
         }));
     } catch (error) {
         if (error instanceof z.ZodError) {
-            res.status(400).json({ error: 'Validation failed', details: error.errors });
+            const firstIssue = error.errors[0];
+            const message = firstIssue
+                ? `${firstIssue.path.join('.') || 'Field'}: ${firstIssue.message}`
+                : 'Validation failed';
+            res.status(400).json({ error: message, details: error.errors });
             return;
         }
         console.error('Create chatbot error:', error);
@@ -253,7 +257,11 @@ router.put('/:id', (req: Request, res: Response) => {
         }));
     } catch (error) {
         if (error instanceof z.ZodError) {
-            res.status(400).json({ error: 'Validation failed', details: error.errors });
+            const firstIssue = error.errors[0];
+            const message = firstIssue
+                ? `${firstIssue.path.join('.') || 'Field'}: ${firstIssue.message}`
+                : 'Validation failed';
+            res.status(400).json({ error: message, details: error.errors });
             return;
         }
         console.error('Update chatbot error:', error);

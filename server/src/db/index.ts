@@ -76,6 +76,9 @@ export async function initializeDatabase(): Promise<Database> {
       db.run('ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1');
       console.log('✅ Migration complete');
     }
+    // Backfill any NULL token_version rows (ALTER TABLE DEFAULT does not update
+    // existing rows in SQLite — they stay NULL, breaking auth version checks).
+    db.run('UPDATE users SET token_version = 1 WHERE token_version IS NULL');
   } catch (e) {
     console.error('Migration error:', e);
   }
