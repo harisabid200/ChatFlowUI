@@ -32,6 +32,16 @@ export class StorageManager {
     }
 
     private generateSessionId(): string {
+        // Use the Web Crypto API for a cryptographically secure 128-bit session ID.
+        // Falls back to Math.random() only on environments without crypto (extremely rare).
+        if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+            const bytes = new Uint8Array(16);
+            crypto.getRandomValues(bytes);
+            return 'sess_' + Array.from(bytes)
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+        // Fallback (legacy browsers only)
         return 'sess_' + Math.random().toString(36).substring(2, 15) +
             Math.random().toString(36).substring(2, 15);
     }

@@ -4,6 +4,16 @@ import { ThemeConfig } from './types';
 export function generateStyles(theme: ThemeConfig, customCss?: string): string {
   const { colors, typography, dimensions, position } = theme;
 
+  // Sanitize customCss to prevent style-tag breakout and CSS injection.
+  // Strips </style> closers (HTML breakout), expression() (IE), and javascript: patterns.
+  const safeCss = customCss
+    ? customCss
+        .replace(/<\/style>/gi, '')          // prevent </style> tag breakout → raw HTML
+        .replace(/expression\s*\(/gi, '')     // block IE CSS expression() execution
+        .replace(/javascript\s*:/gi, '')      // block javascript: URI in CSS values
+        .replace(/url\s*\(\s*["']?\s*javascript/gi, 'url(')  // block url(javascript:...)
+    : '';
+
   // Helper to detect if a color value is a gradient
   const isGradient = (value: string) => value.includes('gradient');
 
@@ -1112,8 +1122,8 @@ export function generateStyles(theme: ThemeConfig, customCss?: string): string {
       }
     }
 
-    /* Custom CSS Slot (Scoped) */
-    ${customCss ? `.cfui-widget { ${customCss} }` : ''}
+    /* Custom CSS Slot (Scoped to .cfui-widget) */
+    ${safeCss ? `.cfui-widget { ${safeCss} }` : ''}
   `;
 }
 

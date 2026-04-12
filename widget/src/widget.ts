@@ -55,10 +55,26 @@ export class ChatWidget {
 
         // Load Google Fonts non-blocking (instead of render-blocking CSS @import)
         if (!document.getElementById('cfui-fonts')) {
+            // Preconnect to Google Fonts domains to speed up font loading
+            if (!document.querySelector('link[rel="preconnect"][href="https://fonts.googleapis.com"]')) {
+                const preconnect1 = document.createElement('link');
+                preconnect1.rel = 'preconnect';
+                preconnect1.href = 'https://fonts.googleapis.com';
+                document.head.appendChild(preconnect1);
+
+                const preconnect2 = document.createElement('link');
+                preconnect2.rel = 'preconnect';
+                preconnect2.href = 'https://fonts.gstatic.com';
+                preconnect2.crossOrigin = 'anonymous';
+                document.head.appendChild(preconnect2);
+            }
+
             const link = document.createElement('link');
             link.id = 'cfui-fonts';
             link.rel = 'stylesheet';
             link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
+            // crossOrigin enables CORS fetch for the stylesheet (supply-chain hardening)
+            link.crossOrigin = 'anonymous';
             link.media = 'print';
             link.onload = function () { (this as HTMLLinkElement).media = 'all'; };
             document.head.appendChild(link);
@@ -87,7 +103,7 @@ export class ChatWidget {
         widget.innerHTML = `
       <button class="cfui-launcher${settings.launcherLogo ? ' cfui-has-logo' : ''}" aria-label="Open chat">
         ${settings.launcherLogo
-                ? `<img class="cfui-launcher-logo" src="${this.escapeHtml(settings.launcherLogo)}" alt="Chat">`
+                ? `<img class="cfui-launcher-logo" src="${this.sanitizeImageUrl(settings.launcherLogo)}" alt="Chat">`
                 : `<svg class="cfui-icon-chat" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" fill="white"/></svg>`
             }
         <svg class="cfui-icon-close" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="white"/></svg>
@@ -98,9 +114,9 @@ export class ChatWidget {
           <div class="cfui-header-info">
             <div class="cfui-header-avatar">
               ${settings.headerLogo
-                ? `<img class="cfui-header-logo" src="${this.escapeHtml(settings.headerLogo)}" alt="">`
+                ? `<img class="cfui-header-logo" src="${this.sanitizeImageUrl(settings.headerLogo)}" alt="">`
                 : theme.branding.logo
-                    ? `<img class="cfui-header-logo" src="${this.escapeHtml(theme.branding.logo)}" alt="">`
+                    ? `<img class="cfui-header-logo" src="${this.sanitizeImageUrl(theme.branding.logo)}" alt="">`
                     : `<div class="cfui-header-logo cfui-default-logo">${icons.bot}</div>`
             }
               <div class="cfui-status-indicator"></div>
@@ -445,7 +461,31 @@ export class ChatWidget {
             .replace(/'/g, "&#039;");
     }
 
-
+    // Validates image URLs — only http/https and data:image/* are permitted.
+    // Blocks javascript:, data:text/html, and any other dangerous protocol.
+    private sanitizeImageUrl(url: string | undefined | null): string {
+        if (!url) return '';
+        try {
+            const parsed = new URL(url);
+            if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+                return this.escapeHtml(url);
+            }
+            if (parsed.protocol === 'data:') {
+                // Only allow image data URIs (e.g. data:image/png;base64,...)
+                if (url.startsWith('data:image/')) {
+                    return this.escapeHtml(url);
+                }
+                return '';
+            }
+            return '';
+        } catch {
+            // URL constructor throws for relative paths — allow them if no protocol mismatch
+            if (!url.startsWith('javascript:') && !url.startsWith('data:')) {
+                return this.escapeHtml(url);
+            }
+            return '';
+        }
+    }
 
     private startPendingTimeout(content: string): void {
         this.clearPendingTimeout();
@@ -495,20 +535,30 @@ export class ChatWidget {
     private showErrorMessage(message: string, retryContent: string): void {
         this.hideSystemMessage();
 
+        // Build error UI with DOM APIs — message may contain server-supplied text
         const errorDiv = document.createElement('div');
         errorDiv.className = 'cfui-error-message';
         errorDiv.id = 'cfui-error-msg';
-        errorDiv.innerHTML = `
-            <div class="cfui-error-icon">⚠️</div>
-            <div class="cfui-error-text">${message}</div>
-            <button class="cfui-retry-btn">Retry</button>
-        `;
 
-        const retryBtn = errorDiv.querySelector('.cfui-retry-btn');
-        retryBtn?.addEventListener('click', () => {
+        const icon = document.createElement('div');
+        icon.className = 'cfui-error-icon';
+        icon.textContent = '⚠️';
+
+        const text = document.createElement('div');
+        text.className = 'cfui-error-text';
+        text.textContent = message;
+
+        const retryBtn = document.createElement('button');
+        retryBtn.className = 'cfui-retry-btn';
+        retryBtn.textContent = 'Retry';
+        retryBtn.addEventListener('click', () => {
             this.hideErrorMessage();
             this.sendMessage(retryContent);
         });
+
+        errorDiv.appendChild(icon);
+        errorDiv.appendChild(text);
+        errorDiv.appendChild(retryBtn);
 
         this.messagesContainer?.appendChild(errorDiv);
         this.scrollToBottom();
@@ -700,38 +750,62 @@ export class ChatWidget {
     private showPreChatForm(config: PreChatFormConfig): void {
         if (!this.messagesContainer) return;
 
+        // Build form using safe DOM APIs — no innerHTML for server-controlled strings
         const form = document.createElement('div');
         form.className = 'cfui-prechat';
-        form.innerHTML = `
-      <h4>${config.title}</h4>
-      ${config.fields
-                .map((field) => {
-                    if (field.type === 'select') {
-                        return `
-              <div class="cfui-prechat-field">
-                <label for="cfui-field-${field.id}">${field.label}${field.required ? ' *' : ''}</label>
-                <select id="cfui-field-${field.id}" ${field.required ? 'required' : ''}>
-                  <option value="">Select...</option>
-                  ${(field.options || []).map((opt) => `<option value="${opt}">${opt}</option>`).join('')}
-                </select>
-              </div>
-            `;
-                    }
-                    return `
-            <div class="cfui-prechat-field">
-              <label for="cfui-field-${field.id}">${field.label}${field.required ? ' *' : ''}</label>
-              <input 
-                type="${field.type}" 
-                id="cfui-field-${field.id}"
-                placeholder="${field.placeholder || ''}"
-                ${field.required ? 'required' : ''}
-              >
-            </div>
-          `;
-                })
-                .join('')}
-      <button class="cfui-prechat-submit">Start Chat</button>
-    `;
+
+        const title = document.createElement('h4');
+        title.textContent = config.title;
+        form.appendChild(title);
+
+        const ALLOWED_FIELD_TYPES = new Set(['text', 'email', 'tel', 'select']);
+
+        config.fields.forEach((field) => {
+            const fieldWrapper = document.createElement('div');
+            fieldWrapper.className = 'cfui-prechat-field';
+
+            const safeId = `cfui-field-${this.escapeHtml(field.id)}`;
+
+            const label = document.createElement('label');
+            label.htmlFor = safeId;
+            label.textContent = field.label + (field.required ? ' *' : '');
+            fieldWrapper.appendChild(label);
+
+            if (field.type === 'select') {
+                const select = document.createElement('select');
+                select.id = safeId;
+                if (field.required) select.required = true;
+
+                const defaultOpt = document.createElement('option');
+                defaultOpt.value = '';
+                defaultOpt.textContent = 'Select...';
+                select.appendChild(defaultOpt);
+
+                (field.options || []).forEach((opt) => {
+                    const option = document.createElement('option');
+                    option.value = opt;
+                    option.textContent = opt;
+                    select.appendChild(option);
+                });
+
+                fieldWrapper.appendChild(select);
+            } else {
+                const safeType = ALLOWED_FIELD_TYPES.has(field.type) ? field.type : 'text';
+                const input = document.createElement('input');
+                input.type = safeType;
+                input.id = safeId;
+                input.placeholder = field.placeholder || '';
+                if (field.required) input.required = true;
+                fieldWrapper.appendChild(input);
+            }
+
+            form.appendChild(fieldWrapper);
+        });
+
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'cfui-prechat-submit';
+        submitBtn.textContent = 'Start Chat';
+        form.appendChild(submitBtn);
 
         // Hide input area during pre-chat
         const inputArea = this.container?.querySelector('.cfui-input-area') as HTMLElement;
@@ -746,7 +820,7 @@ export class ChatWidget {
             let isValid = true;
 
             config.fields.forEach((field) => {
-                const input = form.querySelector(`#cfui-field-${field.id}`) as HTMLInputElement | HTMLSelectElement;
+                const input = form.querySelector(`#cfui-field-${this.escapeHtml(field.id)}`) as HTMLInputElement | HTMLSelectElement;
                 if (input) {
                     if (field.required && !input.value.trim()) {
                         isValid = false;
