@@ -36,3 +36,14 @@ coverage/
 
 # Uploads
 uploads/
+
+# Agent instructions
+AGENTS.md
+
+# Tests & Coverage
+tests/
+test-results/
+playwright-report/
+playwright.config.ts
+tsconfig.test.json
+.env.test
