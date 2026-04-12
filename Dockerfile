@@ -9,7 +9,12 @@ COPY admin/package*.json ./admin/
 COPY widget/package*.json ./widget/
 COPY tsconfig.base.json ./
 
-# Install ALL dependencies including devDeps (tsc, vite, etc.)
+# Install build tools globally so tsc and vite are always in /usr/local/bin.
+# npm workspace hoisting on Alpine does NOT reliably install devDependencies
+# into root node_modules/.bin, so global install is the reliable alternative.
+RUN npm install -g typescript vite
+
+# Install all workspace dependencies
 RUN npm ci
 
 # Copy source
@@ -17,13 +22,8 @@ COPY server ./server
 COPY admin ./admin
 COPY widget ./widget
 
-# Build each workspace by calling node directly on the JS entrypoints.
-# This bypasses node_modules/.bin symlink/shebang resolution issues on Alpine
-# busybox sh, which cause "tsc: not found" even when typescript is installed.
-RUN node node_modules/typescript/bin/tsc -p server/tsconfig.json
-RUN node node_modules/typescript/bin/tsc -p admin/tsconfig.json --noEmit && \
-    node node_modules/vite/bin/vite.js build --config admin/vite.config.ts
-RUN node node_modules/vite/bin/vite.js build --config widget/vite.config.ts
+# Build — tsc and vite are in /usr/local/bin from the global install above
+RUN npm run build
 
 # Production stage
 FROM node:20-alpine AS production
