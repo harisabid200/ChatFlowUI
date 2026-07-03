@@ -5,10 +5,13 @@ import { getSocketService } from '../services/websocket.js';
 import { webhookLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
-router.use(webhookLimiter);
 
-// Receive response from n8n webhook
-router.post('/:chatbotId/response', async (req: Request, res: Response) => {
+// Receive response from n8n webhook.
+// webhookLimiter is attached at the route level (NOT via router.use) so the
+// :chatbotId path param is parsed and available to its keyGenerator. Limiting
+// per-chatbotId prevents one busy customer's n8n traffic — which all comes
+// from a single n8n host IP — from starving other customers.
+router.post('/:chatbotId/response', webhookLimiter, async (req: Request, res: Response) => {
     try {
         const chatbot = getCachedChatbot(req.params.chatbotId);
 
@@ -29,9 +32,16 @@ router.post('/:chatbotId/response', async (req: Request, res: Response) => {
                 res.status(401).json({ error: 'Invalid signature' });
                 return;
             }
+            // HMAC must be computed over the raw request bytes — re-stringifying
+            // the parsed body can reorder keys / re-escape characters and break
+            // signature verification. `req.rawBody` is captured by the
+            // express.json `verify` callback registered on /webhook in
+            // src/index.ts. Fall back to JSON.stringify only if a future caller
+            // bypasses that hook.
+            const bodyForHmac = req.rawBody ?? Buffer.from(JSON.stringify(req.body));
             const expectedSignature = crypto
                 .createHmac('sha256', chatbot.webhook_secret)
-                .update(JSON.stringify(req.body))
+                .update(bodyForHmac)
                 .digest('hex');
 
             // Compare decoded hex bytes — both buffers are 32 bytes (256-bit HMAC)

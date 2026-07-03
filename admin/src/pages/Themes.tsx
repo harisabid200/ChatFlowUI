@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Palette, Copy, Trash2, Loader2, Edit3 } from 'lucide-react';
+import { Palette, Copy, Trash2, Loader2, Edit3, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { themesApi, Theme } from '../api';
 import Layout from '../components/Layout';
@@ -9,8 +9,10 @@ import Layout from '../components/Layout';
 export default function Themes() {
     const queryClient = useQueryClient();
     const [deleteId, setDeleteId] = useState<string | null>(null);
+    // Track which theme is being duplicated so only that card's button is disabled
+    const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
-    const { data: themes, isLoading } = useQuery({
+    const { data: themes, isLoading, isError, refetch } = useQuery({
         queryKey: ['themes'],
         queryFn: themesApi.list,
     });
@@ -25,6 +27,8 @@ export default function Themes() {
 
     const duplicateMutation = useMutation({
         mutationFn: themesApi.duplicate,
+        onMutate: (id: string) => setDuplicatingId(id),
+        onSettled: () => setDuplicatingId(null),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['themes'] });
         },
@@ -51,7 +55,24 @@ export default function Themes() {
                     </div>
                 )}
 
-                {!isLoading && (
+                {/* Error State */}
+                {isError && (
+                    <div className="bg-white rounded-xl border border-red-200 p-12 text-center">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle className="w-8 h-8 text-red-600" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to load themes</h3>
+                        <p className="text-gray-500 mb-6">Check your connection and try again.</p>
+                        <button
+                            onClick={() => refetch()}
+                            className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-lg font-medium transition"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                )}
+
+                {!isLoading && !isError && (
                     <>
                         {/* Preset Themes */}
                         <div className="mb-8">
@@ -62,7 +83,7 @@ export default function Themes() {
                                         key={theme.id}
                                         theme={theme}
                                         onDuplicate={() => duplicateMutation.mutate(theme.id)}
-                                        isDuplicating={duplicateMutation.isPending}
+                                        isDuplicating={duplicatingId === theme.id}
                                     />
                                 ))}
                             </div>
@@ -87,7 +108,7 @@ export default function Themes() {
                                             theme={theme}
                                             onDuplicate={() => duplicateMutation.mutate(theme.id)}
                                             onDelete={() => setDeleteId(theme.id)}
-                                            isDuplicating={duplicateMutation.isPending}
+                                            isDuplicating={duplicatingId === theme.id}
                                         />
                                     ))}
                                 </div>
@@ -102,12 +123,16 @@ export default function Themes() {
                         <div className="bg-white rounded-xl p-6 max-w-md w-full">
                             <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Theme?</h3>
                             <p className="text-gray-500 mb-6">
-                                This action cannot be undone. Chatbots using this theme will fall back to the
-                                default theme.
+                                This action cannot be undone. Themes still assigned to a chatbot cannot be deleted.
                             </p>
+                            {deleteMutation.isError && (
+                                <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg mb-4">
+                                    {deleteMutation.error instanceof Error ? deleteMutation.error.message : 'Failed to delete theme'}
+                                </div>
+                            )}
                             <div className="flex gap-3 justify-end">
                                 <button
-                                    onClick={() => setDeleteId(null)}
+                                    onClick={() => { setDeleteId(null); deleteMutation.reset(); }}
                                     className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition"
                                 >
                                     Cancel

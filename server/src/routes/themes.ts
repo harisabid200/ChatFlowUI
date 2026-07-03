@@ -66,6 +66,12 @@ const themeConfigSchema = z.object({
         typingIndicator: z.boolean(),
         showTimestamps: z.boolean(),
     }),
+    layout: z.object({
+        bubbleStyle: z.enum(['tail', 'rounded', 'sharp', 'card']),
+        density: z.enum(['compact', 'cozy', 'comfortable']),
+        headerStyle: z.enum(['standard', 'compact', 'hero']),
+        avatarShape: z.enum(['circle', 'rounded', 'square', 'none']),
+    }).optional(),
 });
 
 // Helper to transform DB row
@@ -194,6 +200,18 @@ router.delete('/:id', authMiddleware, (req: Request, res: Response) => {
 
     if (existing.is_preset === 1) {
         res.status(403).json({ error: 'Cannot delete preset themes' });
+        return;
+    }
+
+    // Block deletion while chatbots still reference this theme — otherwise
+    // those chatbots carry a dangling theme_id (widget silently falls back to
+    // default, admin shows a stale selection).
+    const refResult = db.exec('SELECT COUNT(*) AS cnt FROM chatbots WHERE theme_id = ?', [req.params.id]);
+    const refCount = Number(refResult[0]?.values[0]?.[0] ?? 0);
+    if (refCount > 0) {
+        res.status(409).json({
+            error: `Theme is in use by ${refCount} chatbot${refCount === 1 ? '' : 's'}. Reassign them first.`,
+        });
         return;
     }
 

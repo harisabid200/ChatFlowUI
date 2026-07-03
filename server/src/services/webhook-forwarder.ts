@@ -1,7 +1,39 @@
 import crypto from 'crypto';
 import dns from 'dns/promises';
 import net from 'net';
+import { LRUCache } from 'lru-cache';
 import { getCachedChatbot } from './chatbot-cache.js';
+
+// =============================================================================
+// DNS lookup cache for the SSRF guard.
+//
+// Why: every webhook send currently runs dns.lookup() on the chatbot's
+// hostname before fetch(). On a busy deployment that's a flood of identical
+// resolutions for a small set of hostnames (typically 1–2 distinct hosts per
+// chatbot). The cache cuts that to one lookup per (hostname, TTL window).
+//
+// Scope of this fix (§3d): reduce DNS load on the SSRF guard's hot path. The
+// fetch() call below still does its own resolution internally — closing the
+// DNS-rebinding TOCTOU window between guard and fetch is a separate concern
+// (§2e in the review) that requires a custom undici dispatcher. Keeping
+// scope tight here.
+//
+// The cache is bounded so a hostile chatbot owner can't unbounded-grow it by
+// pointing at thousands of different hostnames.
+// =============================================================================
+const DNS_CACHE_TTL_MS = 60 * 1000;
+const dnsCache = new LRUCache<string, string>({
+    max: 256,
+    ttl: DNS_CACHE_TTL_MS,
+});
+
+async function cachedDnsLookup(hostname: string): Promise<string> {
+    const cached = dnsCache.get(hostname);
+    if (cached) return cached;
+    const { address } = await dns.lookup(hostname);
+    dnsCache.set(hostname, address);
+    return address;
+}
 
 // --- SSRF Guard -----------------------------------------------------------
 // Checks whether an IP string falls in any RFC-private / loopback / link-local
@@ -47,9 +79,11 @@ async function assertSafeWebhookUrl(rawUrl: string): Promise<void> {
         return;
     }
 
-    // Resolve hostname and reject if it maps to a private range
-    // (guards against DNS rebinding to internal services)
-    const { address } = await dns.lookup(hostname);
+    // Resolve hostname (cached, see cachedDnsLookup above) and reject if it
+    // maps to a private range. NOTE: this only blocks the obvious case; a
+    // motivated DNS-rebind attack can still race against fetch()'s own
+    // resolution. Tracking that under §2e separately.
+    const address = await cachedDnsLookup(hostname);
     if (isPrivateIp(address)) {
         throw new Error('Webhook URL resolves to a private/internal IP address');
     }
@@ -169,6 +203,10 @@ export async function forwardToWebhook(
             headers,
             body: JSON.stringify(payload),
             signal: controller.signal,
+            // SECURITY: never follow redirects. The SSRF guard validated the
+            // configured URL only — a 302 to http://127.0.0.1/ or the cloud
+            // metadata IP would bypass it entirely if redirects were followed.
+            redirect: 'manual',
         });
     } catch (fetchError) {
         if ((fetchError as Error).name === 'AbortError') {
@@ -178,6 +216,12 @@ export async function forwardToWebhook(
         throw fetchError;
     } finally {
         clearTimeout(timeoutId);
+    }
+
+    // Treat redirects as configuration errors (and an SSRF guard backstop).
+    if (response.status >= 300 && response.status < 400) {
+        console.error('Webhook returned a redirect (not followed):', response.status, chatbot.webhook_url);
+        return { success: false, response: null, error: 'Webhook URL redirected — configure the final URL directly.', statusCode: 502 };
     }
 
     if (!response.ok) {

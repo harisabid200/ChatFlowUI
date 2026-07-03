@@ -27,8 +27,9 @@ export default function ChangePassword() {
             return;
         }
 
-        if (newPassword.length < 8) {
-            setError('Password must be at least 8 characters');
+        // Must match the server's minimum (server/src/routes/auth.ts rejects < 12)
+        if (newPassword.length < 12) {
+            setError('Password must be at least 12 characters');
             return;
         }
 
@@ -93,7 +94,7 @@ export default function ChangePassword() {
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition"
-                                placeholder="At least 8 characters"
+                                placeholder="At least 12 characters"
                                 required
                             />
                         </div>
@@ -129,7 +130,7 @@ export default function ChangePassword() {
                                     Saving...
                                 </>
                             ) : (
-                                'Set Password'
+                                isFirstTime ? 'Set Password' : 'Update Password'
                             )}
                         </button>
                     </form>

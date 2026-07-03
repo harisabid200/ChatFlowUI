@@ -1,8 +1,17 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { getCachedChatbot, isOriginAllowedByAnyChatbot } from './chatbot-cache.js';
-import { isOriginInList, globalAllowList } from '../utils/origin.js';
+import { isOriginInList, globalAllowList, normalizeOrigin } from '../utils/origin.js';
 import { config } from '../config.js';
+
+// Normalize once — config.adminOrigin may carry a trailing slash from the env
+// var, which made the strict equality checks below silently fail while the
+// HTTP CORS middleware (which normalizes) accepted the same origin.
+const adminOrigin = config.adminOrigin ? normalizeOrigin(config.adminOrigin) : '';
+
+// Limits mirror the HTTP routes (sessionId ≤ 256). Prevents memory abuse via
+// unbounded room-key strings on the `join` event.
+const MAX_ID_LENGTH = 256;
 
 interface SocketService {
     sendToSession(chatbotId: string, sessionId: string, data: unknown): void;
@@ -26,7 +35,7 @@ export function initializeWebSocket(httpServer: HttpServer): SocketService {
                 }
 
                 // 2. Allow Admin Origin
-                if (config.adminOrigin && config.adminOrigin === requestOrigin) {
+                if (adminOrigin && adminOrigin === normalizeOrigin(requestOrigin)) {
                     return callback(null, true);
                 }
 
@@ -79,8 +88,10 @@ export function initializeWebSocket(httpServer: HttpServer): SocketService {
 
         // Join a chatbot session
         socket.on('join', (data: { chatbotId: string; sessionId: string }) => {
-            const { chatbotId, sessionId } = data;
+            const { chatbotId, sessionId } = data ?? {};
+            if (typeof chatbotId !== 'string' || typeof sessionId !== 'string') return;
             if (!chatbotId || !sessionId) return;
+            if (chatbotId.length > MAX_ID_LENGTH || sessionId.length > MAX_ID_LENGTH) return;
 
             // Validate chatbot exists and check allowed origins
             try {
@@ -103,7 +114,7 @@ export function initializeWebSocket(httpServer: HttpServer): SocketService {
 
                     // Also allow if it matches the server's own domain (same-origin) or configured ADMIN_ORIGIN
                     // This ensures the Admin UI (Preview/Test) can always connect
-                    const isSelfOrAdmin = origin === config.adminOrigin ||
+                    const isSelfOrAdmin = (adminOrigin && normalizeOrigin(origin) === adminOrigin) ||
                         origin === `http://${config.host}:${config.port}` ||
                         origin === `https://${config.host}:${config.port}` ||
                         // In development, allow localhost

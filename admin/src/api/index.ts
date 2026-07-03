@@ -208,6 +208,12 @@ export interface ThemeConfig {
         typingIndicator: boolean;
         showTimestamps: boolean;
     };
+    layout?: {
+        bubbleStyle: 'tail' | 'rounded' | 'sharp' | 'card';
+        density: 'compact' | 'cozy' | 'comfortable';
+        headerStyle: 'standard' | 'compact' | 'hero';
+        avatarShape: 'circle' | 'rounded' | 'square' | 'none';
+    };
 }
 
 export interface Theme {

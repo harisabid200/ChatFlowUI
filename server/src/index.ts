@@ -11,6 +11,7 @@ import { config, isFirstRun } from './config.js';
 import { initializeDatabase, getDb, saveDatabase, getAutoSaveInterval } from './db/index.js';
 import { seedPresetThemes } from './db/themes.js';
 import { initializeWebSocket, getSessionSweepInterval } from './services/websocket.js';
+import { rebuildOriginIndex } from './services/chatbot-cache.js';
 import { dynamicCorsMiddleware } from './middleware/cors.js';
 import { apiLimiter } from './middleware/rateLimit.js';
 
@@ -36,6 +37,10 @@ async function bootstrap() {
     // Seed preset themes
     seedPresetThemes();
     console.log('✅ Preset themes loaded');
+
+    // Build the origin lookup index once. Chatbot CUD operations rebuild it
+    // via invalidateChatbotCache() so the WS handshake stays O(1).
+    rebuildOriginIndex();
 
     // Seed admin user if first run
     await seedAdminUser();
@@ -91,8 +96,17 @@ async function bootstrap() {
     app.use('/api', express.urlencoded({ extended: true, limit: '2mb' }));
     // Widget messages are text-only — 16kb is generous
     app.use('/widget', express.json({ limit: '16kb' }));
-    // n8n webhook response payloads — 64kb covers any realistic response
-    app.use('/webhook', express.json({ limit: '64kb' }));
+    // n8n webhook response payloads — 64kb covers any realistic response.
+    // The `verify` callback stashes the raw body bytes on the request so HMAC
+    // verification in routes/webhook.ts can hash exactly what n8n signed.
+    // Recomputing the hash over JSON.stringify(req.body) is unsafe because key
+    // order, escaping, and number formatting are not guaranteed to match.
+    app.use('/webhook', express.json({
+        limit: '64kb',
+        verify: (req, _res, buf) => {
+            (req as express.Request).rawBody = Buffer.from(buf);
+        },
+    }));
     app.use(cookieParser());
 
     // Health check endpoint (no auth) — verifies DB is reachable

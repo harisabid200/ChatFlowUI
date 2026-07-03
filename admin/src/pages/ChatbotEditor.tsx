@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Save, Loader2, Plus, Trash2, Upload, X, MessageSquare } from 'lucide-react';
-import { chatbotsApi, themesApi, Chatbot, Theme } from '../api';
+import { ArrowLeft, Save, Loader2, Plus, Trash2, Upload, X, MessageSquare, AlertTriangle } from 'lucide-react';
+import { chatbotsApi, themesApi, Chatbot } from '../api';
 import Layout from '../components/Layout';
 import ImageCropper from '../components/ImageCropper';
 import TestChat from '../components/TestChat';
@@ -42,9 +42,10 @@ export default function ChatbotEditor() {
     const [formData, setFormData] = useState<FormData>(defaultFormData);
     const [activeTab, setActiveTab] = useState<'general' | 'appearance' | 'prechat' | 'testchat'>('general');
     const [cropperMode, setCropperMode] = useState<'launcher' | 'header' | null>(null);
+    const [validationError, setValidationError] = useState('');
 
     // Load existing chatbot
-    const { data: chatbot, isLoading } = useQuery({
+    const { data: chatbot, isLoading, isError } = useQuery({
         queryKey: ['chatbot', id],
         queryFn: () => chatbotsApi.get(id!),
         enabled: !isNew,
@@ -114,11 +115,66 @@ export default function ChatbotEditor() {
         }));
     };
 
+    // Mirrors the server-side zod pattern for allowedOrigins so users get a
+    // clear field-level message instead of an opaque 400 after submit.
+    const ORIGIN_PATTERN = /^(https?:\/\/(localhost|[\w.-]+)(:\d+)?(\/.*)?|\*\..+)$/;
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        setValidationError('');
+
+        const origins = formData.allowedOrigins.map((o) => o.trim()).filter(Boolean);
+        if (origins.length === 0) {
+            setValidationError('At least one allowed origin is required.');
+            setActiveTab('general');
+            return;
+        }
+        const invalid = origins.find((o) => !ORIGIN_PATTERN.test(o));
+        if (invalid) {
+            setValidationError(`"${invalid}" is not a valid origin. Use a full URL (https://example.com, http://localhost:3000) or a wildcard domain (*.example.com).`);
+            setActiveTab('general');
+            return;
+        }
+
         saveMutation.mutate(formData);
     };
-    // ... (omitted lines)
+    // Gate the editor while an existing chatbot loads (or fails to load):
+    // rendering the interactive form with defaults risked the user editing a
+    // blank form that was then silently overwritten (or saving over the wrong
+    // record after a failed fetch).
+    if (!isNew && isLoading) {
+        return (
+            <Layout>
+                <div className="flex items-center justify-center py-20">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+                </div>
+            </Layout>
+        );
+    }
+
+    if (!isNew && (isError || (!isLoading && !chatbot))) {
+        return (
+            <Layout>
+                <div className="max-w-4xl mx-auto">
+                    <div className="bg-white rounded-xl border border-red-200 p-12 text-center">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle className="w-8 h-8 text-red-600" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Chatbot not found</h3>
+                        <p className="text-gray-500 mb-6">It may have been deleted, or the link is incorrect.</p>
+                        <Link
+                            to="/"
+                            className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-lg font-medium transition"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to Dashboard
+                        </Link>
+                    </div>
+                </div>
+            </Layout>
+        );
+    }
+
     return (
         <Layout>
             <div className="max-w-4xl mx-auto">
@@ -206,7 +262,8 @@ export default function ChatbotEditor() {
                                         Webhook Secret (Optional)
                                     </label>
                                     <input
-                                        type="text"
+                                        type="password"
+                                        autoComplete="off"
                                         value={formData.webhookSecret}
                                         onChange={(e) => setFormData((prev) => ({ ...prev, webhookSecret: e.target.value }))}
                                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
@@ -529,6 +586,12 @@ export default function ChatbotEditor() {
                                     </>
                                 )}
                             </button>
+                        </div>
+                    )}
+
+                    {validationError && (
+                        <div className="mt-4 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg">
+                            {validationError}
                         </div>
                     )}
 

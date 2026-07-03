@@ -25,8 +25,9 @@ interface ChatbotRow {
     updated_at: string;
 }
 
-// Lightweight row type for the list endpoint — excludes logo columns (up to 2MB each)
-interface ChatbotListRow extends Omit<ChatbotRow, 'launcher_logo' | 'header_logo'> {}
+// Lightweight row type for the list endpoint — excludes logo columns (up to
+// 2MB each) and the webhook secret (never needed in list context).
+interface ChatbotListRow extends Omit<ChatbotRow, 'launcher_logo' | 'header_logo' | 'webhook_secret'> {}
 
 const router = Router();
 
@@ -90,13 +91,14 @@ function transformChatbot(row: ChatbotRow): Chatbot {
     };
 }
 
-// Helper — summary transform for list view (no logos, reduces payload dramatically)
+// Helper — summary transform for list view. Excludes logos (payload size) and
+// webhookSecret (no reason to ship every chatbot's secret to the list view —
+// it sits in React Query cache / DevTools otherwise; fetch via GET /:id).
 function transformChatbotSummary(row: ChatbotListRow): Chatbot {
     return {
         id: row.id,
         name: row.name,
         webhookUrl: row.webhook_url,
-        webhookSecret: row.webhook_secret || undefined,
         allowedOrigins: JSON.parse(row.allowed_origins),
         themeId: row.theme_id || undefined,
         customCss: row.custom_css || undefined,
@@ -111,7 +113,7 @@ function transformChatbotSummary(row: ChatbotListRow): Chatbot {
 router.get('/', (_req: Request, res: Response) => {
     const db = getDb();
     const result = db.exec(
-        `SELECT id, name, webhook_url, webhook_secret, allowed_origins, theme_id,
+        `SELECT id, name, webhook_url, allowed_origins, theme_id,
                 custom_css, pre_chat_form, settings, created_at, updated_at
          FROM chatbots ORDER BY created_at DESC`
     );
@@ -162,6 +164,9 @@ router.post('/', (req: Request, res: Response) => {
             data.headerLogo || null,
         ]);
         saveDatabase();
+        // Rebuild the origin index so the new chatbot's allowed origins
+        // become visible to isOriginAllowedByAnyChatbot() on the WS hot path.
+        invalidateChatbotCache(id);
 
         // Fetch timestamps from DB so the response matches what is stored
         // (CURRENT_TIMESTAMP is set by SQLite, not the JS clock)

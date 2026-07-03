@@ -8,6 +8,10 @@ declare global {
     namespace Express {
         interface Request {
             user?: JwtPayload;
+            // Raw request body bytes, captured by the express.json `verify`
+            // callback for routes that need byte-exact HMAC verification
+            // (see `/webhook` mount in src/index.ts).
+            rawBody?: Buffer;
         }
     }
 }

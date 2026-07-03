@@ -47,6 +47,14 @@ function initWidget(options: InitOptions): void {
     // Determine base URL
     const baseUrl = options.baseUrl || detectBaseUrl();
 
+    // Tear down any existing instance for this chatbot — re-init previously
+    // leaked the old DOM tree (and its listeners) into document.body.
+    const existing = widgets.get(options.chatbotId);
+    if (existing) {
+        existing.destroy();
+        widgets.delete(options.chatbotId);
+    }
+
     // Create widget
     const widget = new ChatWidget(options.chatbotId, baseUrl);
     widgets.set(options.chatbotId, widget);

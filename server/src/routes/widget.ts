@@ -85,8 +85,8 @@ router.post('/:chatbotId/message', dynamicCorsMiddleware, widgetLimiter, async (
             return;
         }
 
-        if (message.length > 4096) {
-            res.status(400).json({ error: 'Message too long. Maximum 4096 characters allowed.' });
+        if (typeof message !== 'string' || message.length > 4096) {
+            res.status(400).json({ error: 'message must be a string of at most 4096 characters' });
             return;
         }
 

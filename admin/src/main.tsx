@@ -10,6 +10,9 @@ const queryClient = new QueryClient({
         queries: {
             retry: 1,
             refetchOnWindowFocus: false,
+            // Admin data changes only via this dashboard — 30s of staleness is
+            // safe and avoids refetching lists on every route navigation.
+            staleTime: 30_000,
         },
     },
 });

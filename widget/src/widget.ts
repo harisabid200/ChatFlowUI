@@ -2,7 +2,7 @@ import { WidgetConfig, ChatMessage, PreChatFormConfig } from './types';
 import { StorageManager } from './storage';
 import { SocketClient } from './socket';
 import { parseMarkdown, formatTime, generateId } from './markdown';
-import { generateStyles, icons } from './styles';
+import { generateStyles, icons, resolveLayout } from './styles';
 
 export class ChatWidget {
     private config: WidgetConfig | null = null;
@@ -18,6 +18,7 @@ export class ChatWidget {
     private isPending = false;
     private quickReplies: string[] = [];
     private pendingTimeout: number | null = null;
+    private escapeKeyHandler: ((e: KeyboardEvent) => void) | null = null;
 
     constructor(chatbotId: string, baseUrl: string) {
         this.chatbotId = chatbotId;
@@ -100,16 +101,23 @@ export class ChatWidget {
         // Create widget container
         const widget = document.createElement('div');
         widget.className = 'cfui-widget';
+        // Apply structural layout variations via data attributes; the CSS in
+        // styles.ts targets these to vary geometry without touching colors.
+        const layout = resolveLayout(theme);
+        widget.setAttribute('data-cfui-bubble', layout.bubbleStyle);
+        widget.setAttribute('data-cfui-density', layout.density);
+        widget.setAttribute('data-cfui-header', layout.headerStyle);
+        widget.setAttribute('data-cfui-avatar', layout.avatarShape);
         widget.innerHTML = `
-      <button class="cfui-launcher${settings.launcherLogo ? ' cfui-has-logo' : ''}" aria-label="Open chat">
+      <button class="cfui-launcher${settings.launcherLogo ? ' cfui-has-logo' : ''}" aria-label="Open chat" aria-expanded="false" aria-haspopup="dialog">
         ${settings.launcherLogo
                 ? `<img class="cfui-launcher-logo" src="${this.sanitizeImageUrl(settings.launcherLogo)}" alt="Chat">`
-                : `<svg class="cfui-icon-chat" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" fill="white"/></svg>`
+                : `<span class="cfui-icon-chat">${icons.chat}</span>`
             }
-        <svg class="cfui-icon-close" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="white"/></svg>
+        <span class="cfui-icon-close">${icons.close}</span>
       </button>
       
-      <div class="cfui-container">
+      <div class="cfui-container" role="dialog" aria-label="${this.escapeHtml(settings.headerTitle || theme.branding.title)}">
         <div class="cfui-header">
           <div class="cfui-header-info">
             <div class="cfui-header-avatar">
@@ -144,12 +152,14 @@ export class ChatWidget {
         <div class="cfui-quick-replies"></div>
         
         <div class="cfui-input-area">
-          <input 
-            type="text" 
-            class="cfui-input" 
-            placeholder="${settings.inputPlaceholder || theme.branding.inputPlaceholder}"
-            aria-label="Type a message"
-          >
+          <div class="cfui-input-wrapper">
+            <input 
+              type="text" 
+              class="cfui-input" 
+              placeholder="${this.escapeHtml(settings.inputPlaceholder || theme.branding.inputPlaceholder)}"
+              aria-label="Type a message"
+            >
+          </div>
           <button class="cfui-send-btn" aria-label="Send message">
             ${icons.send}
           </button>
@@ -210,12 +220,13 @@ export class ChatWidget {
         const sendBtn = this.container.querySelector('.cfui-send-btn');
         sendBtn?.addEventListener('click', () => this.sendMessage());
 
-        // Escape to close
-        document.addEventListener('keydown', (e) => {
+        // Escape to close — keep the reference so destroy() can remove it
+        this.escapeKeyHandler = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && this.isOpen) {
                 this.close();
             }
-        });
+        };
+        document.addEventListener('keydown', this.escapeKeyHandler);
     }
 
     private setupSocket(): void {
@@ -259,12 +270,15 @@ export class ChatWidget {
         }
 
         // Restore messages
+        const preChatPending = !!this.config?.preChatForm?.enabled && !conversation.preChatCompleted;
         if (conversation.messages.length > 0) {
             conversation.messages.forEach((msg) => {
                 this.renderMessage(msg, false);
             });
-        } else if (this.config?.settings.welcomeMessage) {
-            // Show welcome message
+        } else if (!preChatPending && this.config?.settings.welcomeMessage) {
+            // Show welcome message — but not while the pre-chat form is still
+            // pending; the form's submit handler adds it, and doing both
+            // produced duplicate welcome messages.
             this.addMessage({
                 id: generateId(),
                 type: 'bot',
@@ -287,6 +301,8 @@ export class ChatWidget {
         const launcher = this.container?.querySelector('.cfui-launcher');
         container?.classList.add('cfui-open');
         launcher?.classList.add('cfui-open');
+        launcher?.setAttribute('aria-expanded', 'true');
+        launcher?.setAttribute('aria-label', 'Close chat');
         this.container?.classList.add('cfui-mobile-open');
         this.isOpen = true;
         this.storage.setWidgetOpen(true);
@@ -305,6 +321,8 @@ export class ChatWidget {
         const launcher = this.container?.querySelector('.cfui-launcher');
         container?.classList.remove('cfui-open');
         launcher?.classList.remove('cfui-open');
+        launcher?.setAttribute('aria-expanded', 'false');
+        launcher?.setAttribute('aria-label', 'Open chat');
         this.container?.classList.remove('cfui-mobile-open');
         this.isOpen = false;
         this.storage.setWidgetOpen(false);
@@ -314,7 +332,9 @@ export class ChatWidget {
         const content = retryContent || this.inputElement?.value.trim();
 
         if (!content) return;
-        if (this.isPending && !retryContent) return;
+        // Applies to retries too — errors are only shown after pending is
+        // cleared, so a pending state here always means a request in flight.
+        if (this.isPending) return;
 
         // Character limit validation (default 4000)
         const maxLength = this.config?.settings.maxMessageLength || 4000;
@@ -447,6 +467,10 @@ export class ChatWidget {
         // All retries failed
         console.error('[ChatFlowUI] Send message error:', lastError);
         this.hideTyping();
+        // If the reply already arrived via WebSocket while we were retrying
+        // (pending was cleared by the socket handler), the turn visibly
+        // succeeded — don't show an error banner under a delivered answer.
+        if (!this.isPending) return;
         this.setPending(false);
         this.showErrorMessage(this.getErrorMessage(lastError), content);
     }
@@ -479,7 +503,10 @@ export class ChatWidget {
             }
             return '';
         } catch {
-            // URL constructor throws for relative paths — allow them if no protocol mismatch
+            // URL constructor throws for relative paths. Allow same-origin
+            // relative paths but reject protocol-relative URLs (//evil.com)
+            // which would load from an arbitrary host.
+            if (url.startsWith('//')) return '';
             if (!url.startsWith('javascript:') && !url.startsWith('data:')) {
                 return this.escapeHtml(url);
             }
@@ -569,12 +596,14 @@ export class ChatWidget {
     }
 
     private addSystemMessage(message: string): void {
-        this.addMessage({
+        // Transient — rendered only, never persisted. Persisting these meant
+        // stale validation errors reappeared on every page reload.
+        this.renderMessage({
             id: generateId(),
             type: 'system',
             content: message,
             timestamp: new Date().toISOString(),
-        });
+        }, true);
     }
 
     private hideSystemMessage(): void {
@@ -640,7 +669,10 @@ export class ChatWidget {
         if (!animate) wrapper.style.animation = 'none';
 
         const content = parseMarkdown(message.content);
-        const showTimestamp = this.config?.theme.features.showTimestamps ?? true;
+        // Per-chatbot setting wins over the theme default (mirrors soundEnabled).
+        const showTimestamp = this.config?.settings.showTimestamps
+            ?? this.config?.theme.features.showTimestamps
+            ?? true;
 
         wrapper.innerHTML = `
             ${isBot ? `<div class="cfui-message-avatar cfui-bot-avatar">${icons.bot}</div>` : ''}
@@ -664,7 +696,11 @@ export class ChatWidget {
 
     private showTyping(): void {
         if (this.isTyping || !this.messagesContainer) return;
-        if (!this.config?.theme.features.typingIndicator) return;
+        // Per-chatbot setting wins over the theme default.
+        const typingEnabled = this.config?.settings.typingIndicator
+            ?? this.config?.theme.features.typingIndicator
+            ?? true;
+        if (!typingEnabled) return;
 
         this.isTyping = true;
 
@@ -790,7 +826,9 @@ export class ChatWidget {
 
                 fieldWrapper.appendChild(select);
             } else {
-                const safeType = ALLOWED_FIELD_TYPES.has(field.type) ? field.type : 'text';
+                // Admin configures 'phone'; the HTML input type is 'tel'.
+                const mappedType = field.type === 'phone' ? 'tel' : field.type;
+                const safeType = ALLOWED_FIELD_TYPES.has(mappedType) ? mappedType : 'text';
                 const input = document.createElement('input');
                 input.type = safeType;
                 input.id = safeId;
@@ -901,6 +939,14 @@ export class ChatWidget {
             this.socket = null;
         }
 
+        // If the panel is open, reconnect NOW with the new sessionId. The
+        // lazy-connect in open() only fires on the next open — without this,
+        // async bot replies (delivered via WebSocket) silently never arrive
+        // for the rest of the session while the panel stays open.
+        if (this.isOpen) {
+            this.setupSocket();
+        }
+
         // Reset pending state
         this.setPending(false);
         this.hideTyping();
@@ -942,8 +988,17 @@ export class ChatWidget {
 
 
     destroy(): void {
+        this.clearPendingTimeout();
+        if (this.escapeKeyHandler) {
+            document.removeEventListener('keydown', this.escapeKeyHandler);
+            this.escapeKeyHandler = null;
+        }
         this.socket?.disconnect();
+        this.socket = null;
         this.container?.remove();
+        this.container = null;
+        this.messagesContainer = null;
+        this.inputElement = null;
         const styles = document.getElementById('cfui-styles');
         styles?.remove();
     }

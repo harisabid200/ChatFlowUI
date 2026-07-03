@@ -1,28 +1,28 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     Plus,
     Settings,
     Trash2,
     Code,
-    ExternalLink,
     Bot,
     Loader2,
     Copy,
     Check,
+    AlertTriangle,
 } from 'lucide-react';
-import { chatbotsApi, Chatbot } from '../api';
+import { chatbotsApi } from '../api';
 import Layout from '../components/Layout';
 
 export default function Dashboard() {
-    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [embedModal, setEmbedModal] = useState<{ chatbotId: string; code: string } | null>(null);
+    const [embedError, setEmbedError] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const { data: chatbots, isLoading } = useQuery({
+    const { data: chatbots, isLoading, isError, refetch } = useQuery({
         queryKey: ['chatbots'],
         queryFn: chatbotsApi.list,
     });
@@ -36,19 +36,24 @@ export default function Dashboard() {
     });
 
     const handleGetEmbed = async (id: string) => {
+        setEmbedError(false);
         try {
             const { embedCode } = await chatbotsApi.getEmbed(id);
             setEmbedModal({ chatbotId: id, code: embedCode });
         } catch (error) {
             console.error('Failed to get embed code:', error);
+            setEmbedError(true);
         }
     };
 
-    const handleCopy = () => {
-        if (embedModal) {
-            navigator.clipboard.writeText(embedModal.code);
+    const handleCopy = async () => {
+        if (!embedModal) return;
+        try {
+            await navigator.clipboard.writeText(embedModal.code);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
+        } catch (error) {
+            console.error('Clipboard copy failed:', error);
         }
     };
 
@@ -77,8 +82,34 @@ export default function Dashboard() {
                     </div>
                 )}
 
+                {/* Error State — distinct from empty so an API failure never
+                    masquerades as "No chatbots yet" */}
+                {isError && (
+                    <div className="bg-white rounded-xl border border-red-200 p-12 text-center">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle className="w-8 h-8 text-red-600" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to load chatbots</h3>
+                        <p className="text-gray-500 mb-6">Check your connection and try again.</p>
+                        <button
+                            onClick={() => refetch()}
+                            className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-lg font-medium transition"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                )}
+
+                {/* Embed code fetch error */}
+                {embedError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
+                        <span>Failed to load embed code. Please try again.</span>
+                        <button onClick={() => setEmbedError(false)} className="text-red-500 hover:text-red-700 font-medium">Dismiss</button>
+                    </div>
+                )}
+
                 {/* Empty State */}
-                {!isLoading && (!chatbots || chatbots.length === 0) && (
+                {!isLoading && !isError && (!chatbots || chatbots.length === 0) && (
                     <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
                         <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Bot className="w-8 h-8 text-primary-600" />
@@ -152,9 +183,14 @@ export default function Dashboard() {
                             <p className="text-gray-500 mb-6">
                                 This action cannot be undone. The widget will stop working on all websites.
                             </p>
+                            {deleteMutation.isError && (
+                                <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg mb-4">
+                                    {deleteMutation.error instanceof Error ? deleteMutation.error.message : 'Failed to delete chatbot'}
+                                </div>
+                            )}
                             <div className="flex gap-3 justify-end">
                                 <button
-                                    onClick={() => setDeleteId(null)}
+                                    onClick={() => { setDeleteId(null); deleteMutation.reset(); }}
                                     className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition"
                                 >
                                     Cancel

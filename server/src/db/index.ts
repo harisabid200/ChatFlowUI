@@ -100,9 +100,18 @@ export function getDb(): Database {
   return db;
 }
 
+let _saveQueued = false;
+
 export async function saveDatabase(): Promise<void> {
   if (!db) return;
-  if (_pendingSave) return;
+  if (_pendingSave) {
+    // A save is already exporting/writing. Don't drop this request — queue
+    // exactly one follow-up save so writes that landed after the in-flight
+    // export started still reach disk (previously they were silently lost
+    // until the next 30s auto-save, or forever on a crash).
+    _saveQueued = true;
+    return;
+  }
   _pendingSave = true;
   try {
     const data = db.export();
@@ -111,6 +120,10 @@ export async function saveDatabase(): Promise<void> {
     console.error('Failed to save database:', error);
   } finally {
     _pendingSave = false;
+    if (_saveQueued) {
+      _saveQueued = false;
+      void saveDatabase();
+    }
   }
 }
 

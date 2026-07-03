@@ -40,6 +40,9 @@ uploads/
 # Agent instructions
 AGENTS.md
 
+# Internal review notes
+CODE_REVIEW.md
+
 # Tests & Coverage
 tests/
 test-results/

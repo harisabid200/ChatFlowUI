@@ -104,6 +104,19 @@ export interface ThemeFeatures {
     showTimestamps: boolean;
 }
 
+// Visual / structural layout variations independent of color
+export type BubbleStyle = 'tail' | 'rounded' | 'sharp' | 'card';
+export type Density = 'compact' | 'cozy' | 'comfortable';
+export type HeaderStyle = 'standard' | 'compact' | 'hero';
+export type AvatarShape = 'circle' | 'rounded' | 'square' | 'none';
+
+export interface ThemeLayout {
+    bubbleStyle: BubbleStyle;
+    density: Density;
+    headerStyle: HeaderStyle;
+    avatarShape: AvatarShape;
+}
+
 export interface ThemeConfig {
     name: string;
     colors: ThemeColors;
@@ -112,6 +125,11 @@ export interface ThemeConfig {
     position: ThemePosition;
     branding: ThemeBranding;
     features: ThemeFeatures;
+    // Optional — older themes (and DB rows from before this field existed) read
+    // sensible defaults: { bubbleStyle: 'tail', density: 'cozy',
+    // headerStyle: 'standard', avatarShape: 'rounded' }. Defaults are applied
+    // by the widget at render time so no DB migration is needed.
+    layout?: ThemeLayout;
 }
 
 export interface Theme {
@@ -149,6 +167,6 @@ export interface JwtPayload {
     username: string;
     tokenVersion: number;
     mustChangePassword: boolean;
-    iac?: number;
+    iat?: number;
     exp?: number;
 }

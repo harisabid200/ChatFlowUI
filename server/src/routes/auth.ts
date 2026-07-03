@@ -3,8 +3,9 @@ import bcrypt from 'bcryptjs';
 import { getDb, saveDatabase } from '../db/index.js';
 import { getOne } from '../db/helpers.js';
 import { generateToken, authMiddleware } from '../middleware/auth.js';
-import { authLimiter } from '../middleware/rateLimit.js';
+import { authLimiter, rateLimitStores } from '../middleware/rateLimit.js';
 import { invalidateUserCache } from '../services/user-cache.js';
+import { config } from '../config.js';
 
 interface UserRow {
     id: number;
@@ -74,8 +75,24 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
     }
 });
 
-// Logout
-router.post('/logout', (_req: Request, res: Response) => {
+// Logout — invalidates the JWT by bumping token_version so any captured
+// token (e.g. from a stolen cookie) cannot be replayed for the rest of the
+// 7-day expiry window.
+router.post('/logout', authMiddleware, async (req: Request, res: Response) => {
+    try {
+        const db = getDb();
+        db.run(
+            `UPDATE users SET token_version = token_version + 1 WHERE id = ?`,
+            [req.user!.userId]
+        );
+        // Await so the token invalidation is on disk before we respond —
+        // otherwise a crash/restart resurrects the "logged out" JWT.
+        await saveDatabase();
+        invalidateUserCache(req.user!.userId);
+    } catch (error) {
+        // Don't block logout on DB error — clearing the cookie is still useful.
+        console.error('Logout token-version bump failed:', error);
+    }
     res.clearCookie('token');
     res.json({ success: true });
 });
@@ -133,7 +150,8 @@ router.post('/change-password', authMiddleware, async (req: Request, res: Respon
             `UPDATE users SET password_hash = ?, must_change_password = 0, token_version = ? WHERE id = ?`,
             [newHash, newTokenVersion, req.user!.userId]
         );
-        saveDatabase();
+        // Await — the new hash + token_version must survive a restart.
+        await saveDatabase();
         invalidateUserCache(req.user!.userId);
 
         const freshToken = generateToken({
@@ -156,5 +174,18 @@ router.post('/change-password', authMiddleware, async (req: Request, res: Respon
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
+// Test-only endpoint — clears all in-memory rate-limit counters so the
+// Playwright globalSetup can start each suite with a clean slate. Gated on
+// NODE_ENV=test so it can never be hit in production.
+if (config.nodeEnv === 'test') {
+    router.post('/flush-rate-limits', (_req: Request, res: Response) => {
+        rateLimitStores.forEach((store) => {
+            // resetAll() returns Promise<void> — fire-and-forget is fine here.
+            void store.resetAll();
+        });
+        res.json({ success: true, cleared: rateLimitStores.length });
+    });
+}
 
 export default router;

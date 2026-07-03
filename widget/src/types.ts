@@ -19,6 +19,18 @@ export interface ThemeColors {
     userIconColor?: string;
 }
 
+export type BubbleStyle = 'tail' | 'rounded' | 'sharp' | 'card';
+export type Density = 'compact' | 'cozy' | 'comfortable';
+export type HeaderStyle = 'standard' | 'compact' | 'hero';
+export type AvatarShape = 'circle' | 'rounded' | 'square' | 'none';
+
+export interface ThemeLayout {
+    bubbleStyle: BubbleStyle;
+    density: Density;
+    headerStyle: HeaderStyle;
+    avatarShape: AvatarShape;
+}
+
 export interface ThemeConfig {
     name: string;
     colors: ThemeColors;
@@ -50,6 +62,7 @@ export interface ThemeConfig {
         typingIndicator: boolean;
         showTimestamps: boolean;
     };
+    layout?: ThemeLayout;
 }
 
 

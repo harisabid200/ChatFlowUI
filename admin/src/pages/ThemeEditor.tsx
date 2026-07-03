@@ -6,13 +6,13 @@ import { themesApi, ThemeConfig } from '../api';
 import Layout from '../components/Layout';
 
 
-// ── SVG Icons (matching the actual widget) ──
+// ── SVG Icons (must stay in sync with widget/src/styles.ts `icons`) ──
 const widgetIcons = {
-    chat: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.49 3.53 1.35 5L2 22l5-1.35C8.47 21.51 10.18 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.55 0-3.02-.44-4.27-1.2l-.3-.18-3.12.82.83-3.04-.2-.32A7.96 7.96 0 014 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8zm4.39-5.15c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.93-1.18-.71-.63-1.19-1.41-1.33-1.65-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41-.14-.01-.3-.01-.46-.01s-.42.06-.64.3c-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.1.16 1.52.1.46-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28z" fill="currentColor"/></svg>`,
+    chat: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" fill-rule="evenodd" d="M5 4a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h2.5v3a1 1 0 0 0 1.625.78L13.75 18H19a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H5zm3.5 6.75a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zm3.5 0a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zm3.5 0a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5z" clip-rule="evenodd"/></svg>`,
     sound: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" fill="currentColor"/></svg>`,
     refresh: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor"/></svg>`,
     close: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor"/></svg>`,
-    bot: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a1 1 0 011 1v3a1 1 0 01-1 1h-1a7 7 0 01-7 7H10a7 7 0 01-7-7H2a1 1 0 01-1-1v-3a1 1 0 011-1h1a7 7 0 017-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2zm-4 9a2 2 0 100 4 2 2 0 000-4zm8 0a2 2 0 100 4 2 2 0 000-4z" fill="currentColor"/></svg>`,
+    bot: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" fill-rule="evenodd" d="M12 1.5a1 1 0 0 1 1 1V4h4a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4h4V2.5a1 1 0 0 1 1-1zM9 11a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9.25 15.75a.75.75 0 0 0 0 1.5h5.5a.75.75 0 0 0 0-1.5h-5.5z" clip-rule="evenodd"/></svg>`,
 };
 
 // ── Helper ──
@@ -104,41 +104,99 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
     );
 }
 
+// ── Layout helpers (mirror widget/src/styles.ts so preview matches the live widget) ──
+
+type LayoutResolved = {
+    bubbleStyle: 'tail' | 'rounded' | 'sharp' | 'card';
+    density: 'compact' | 'cozy' | 'comfortable';
+    headerStyle: 'standard' | 'compact' | 'hero';
+    avatarShape: 'circle' | 'rounded' | 'square' | 'none';
+};
+
+function resolveLayout(config: ThemeConfig): LayoutResolved {
+    return {
+        bubbleStyle: config.layout?.bubbleStyle ?? 'tail',
+        density: config.layout?.density ?? 'cozy',
+        headerStyle: config.layout?.headerStyle ?? 'standard',
+        avatarShape: config.layout?.avatarShape ?? 'rounded',
+    };
+}
+
+// Density tokens map directly to the same values used in widget/src/styles.ts.
+const DENSITY_TOKENS = {
+    compact: { messagesPad: '12px', messagesGap: '8px', msgPad: '9px 13px', avatarSize: 28, sendSize: 42 },
+    cozy: { messagesPad: '20px', messagesGap: '16px', msgPad: '14px 18px', avatarSize: 32, sendSize: 44 },
+    comfortable: { messagesPad: '28px 24px', messagesGap: '22px', msgPad: '18px 22px', avatarSize: 36, sendSize: 44 },
+} as const;
+
+const HEADER_TOKENS = {
+    standard: { padding: '18px 20px', avatarSize: 44, avatarRadius: 14, svgSize: 24, showSubtitle: true, showPattern: true, titleScale: 0, subtitleSize: '12px' },
+    compact: { padding: '12px 16px', avatarSize: 36, avatarRadius: 10, svgSize: 20, showSubtitle: false, showPattern: false, titleScale: 0, subtitleSize: '12px' },
+    hero: { padding: '24px 24px', avatarSize: 56, avatarRadius: 16, svgSize: 30, showSubtitle: true, showPattern: true, titleScale: 2, subtitleSize: '13px' },
+} as const;
+
+function getBubbleRadius(bubbleStyle: LayoutResolved['bubbleStyle'], isUser: boolean): React.CSSProperties {
+    switch (bubbleStyle) {
+        case 'tail':
+            return isUser
+                ? { borderRadius: '18px', borderBottomRightRadius: '6px' }
+                : { borderRadius: '18px', borderBottomLeftRadius: '6px' };
+        case 'rounded':
+            return { borderRadius: '18px' };
+        case 'sharp':
+            return { borderRadius: '8px' };
+        case 'card':
+            return { borderRadius: '10px' };
+    }
+}
+
+function getAvatarRadius(shape: LayoutResolved['avatarShape']): string {
+    switch (shape) {
+        case 'circle': return '50%';
+        case 'square': return '4px';
+        case 'rounded': return '10px';
+        case 'none': return '10px';
+    }
+}
+
 // ── Bot Avatar Icon (small, for messages) ──
-// ── Bot Avatar Icon (small, for messages) ──
-function BotAvatarIcon({ primary, primaryHover, avatarBg, iconColor }: { primary: string; primaryHover: string; avatarBg?: string; iconColor?: string }) {
+function BotAvatarIcon({ primary, primaryHover, avatarBg, iconColor, size, radius }: {
+    primary: string; primaryHover: string; avatarBg?: string; iconColor?: string;
+    size: number; radius: string;
+}) {
     const background = avatarBg || `linear-gradient(135deg, ${primary} 0%, ${primaryHover} 100%)`;
     return (
         <div style={{
-            width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
+            width: `${size}px`, height: `${size}px`, borderRadius: radius, flexShrink: 0,
             background,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             color: iconColor || 'white',
         }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a1 1 0 011 1v3a1 1 0 01-1 1h-1a7 7 0 01-7 7H10a7 7 0 01-7-7H2a1 1 0 01-1-1v-3a1 1 0 011-1h1a7 7 0 017-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2zm-4 9a2 2 0 100 4 2 2 0 000-4zm8 0a2 2 0 100 4 2 2 0 000-4z" />
+            <svg width={Math.round(size * 0.56)} height={Math.round(size * 0.56)} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path fillRule="evenodd" clipRule="evenodd" d="M12 1.5a1 1 0 0 1 1 1V4h4a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4h4V2.5a1 1 0 0 1 1-1zM9 11a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9.25 15.75a.75.75 0 0 0 0 1.5h5.5a.75.75 0 0 0 0-1.5h-5.5z" />
             </svg>
         </div>
     );
 }
 
 // ── User Avatar Icon (small, for messages) ──
-// ── User Avatar Icon (small, for messages) ──
-function UserAvatarIcon({ avatarBg, iconColor }: { avatarBg: string; iconColor?: string }) {
+function UserAvatarIcon({ avatarBg, iconColor, size, radius }: {
+    avatarBg: string; iconColor?: string; size: number; radius: string;
+}) {
     const bg = isGradient(avatarBg)
         ? avatarBg
         : `linear-gradient(135deg, ${avatarBg} 0%, color-mix(in srgb, ${avatarBg} 80%, black) 100%)`;
     return (
         <div style={{
-            width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
+            width: `${size}px`, height: `${size}px`, borderRadius: radius, flexShrink: 0,
             background: bg,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             color: iconColor || 'white',
         }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+            <svg width={Math.round(size * 0.56)} height={Math.round(size * 0.56)} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 11.5a4.25 4.25 0 1 0-4.25-4.25A4.25 4.25 0 0 0 12 11.5zm0 1.75c-3.59 0-7.5 1.95-7.5 4.75v.75A1.5 1.5 0 0 0 6 20.25h12a1.5 1.5 0 0 0 1.5-1.5V18c0-2.8-3.91-4.75-7.5-4.75z" />
             </svg>
         </div>
     );
@@ -150,13 +208,48 @@ function WidgetPreview({ config }: { config: ThemeConfig }) {
     const borderRadius = parseInt(dimensions.borderRadius) || 16;
     const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    const layout = resolveLayout(config);
+    const density = DENSITY_TOKENS[layout.density];
+    const headerTokens = HEADER_TOKENS[layout.headerStyle];
+    const avatarRadius = getAvatarRadius(layout.avatarShape);
+    const showAvatars = layout.avatarShape !== 'none';
+    const isCard = layout.bubbleStyle === 'card';
+
     const headerBg = isGradient(colors.headerBg)
         ? colors.headerBg
         : `linear-gradient(135deg, ${colors.headerBg} 0%, color-mix(in srgb, ${colors.headerBg} 85%, black) 100%)`;
 
-    const userMsgBg = isGradient(colors.userMessageBg)
-        ? colors.userMessageBg
-        : colors.userMessageBg;
+    const userBubbleStyle: React.CSSProperties = {
+        background: isGradient(colors.userMessageBg)
+            ? colors.userMessageBg
+            : `linear-gradient(135deg, ${colors.userMessageBg} 0%, color-mix(in srgb, ${colors.userMessageBg} 90%, black) 100%)`,
+        color: colors.userMessageText,
+        padding: density.msgPad,
+        ...getBubbleRadius(layout.bubbleStyle, true),
+        lineHeight: '1.55',
+        boxShadow: isCard
+            ? 'none'
+            : (isGradient(colors.userMessageBg)
+                ? '0 2px 12px rgba(0, 0, 0, 0.15)'
+                : `0 2px 12px color-mix(in srgb, ${colors.userMessageBg} 30%, transparent)`),
+        border: isCard ? `1px solid color-mix(in srgb, ${colors.userMessageBg} 70%, transparent)` : 'none',
+    };
+
+    const botBubbleStyle: React.CSSProperties = {
+        background: colors.botMessageBg,
+        color: colors.botMessageText,
+        padding: density.msgPad,
+        ...getBubbleRadius(layout.bubbleStyle, false),
+        lineHeight: '1.55',
+        boxShadow: isCard ? 'none' : '0 2px 8px rgba(0,0,0,0.04)',
+        border: isCard
+            ? `1px solid ${colors.inputBorder}`
+            : `1px solid color-mix(in srgb, ${colors.inputBorder} 50%, transparent)`,
+    };
+
+    const headerTitleSize = headerTokens.titleScale === 0
+        ? typography.headerFontSize
+        : `calc(${typography.headerFontSize} + ${headerTokens.titleScale}px)`;
 
     return (
         <div className="sticky top-6">
@@ -176,32 +269,35 @@ function WidgetPreview({ config }: { config: ThemeConfig }) {
                 <div style={{
                     background: headerBg,
                     color: colors.headerText,
-                    padding: '18px 20px',
+                    padding: headerTokens.padding,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     position: 'relative',
                     overflow: 'hidden',
                 }}>
-                    <div style={{
-                        position: 'absolute', inset: 0,
-                        background: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-                        pointerEvents: 'none',
-                    }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', position: 'relative', zIndex: 1 }}>
+                    {headerTokens.showPattern && (
+                        <div style={{
+                            position: 'absolute', inset: 0,
+                            background: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                            pointerEvents: 'none',
+                        }} />
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: layout.headerStyle === 'compact' ? '10px' : '14px', position: 'relative', zIndex: 1 }}>
                         <div style={{ position: 'relative' }}>
                             <div style={{
-                                width: '44px', height: '44px', borderRadius: '14px',
+                                width: `${headerTokens.avatarSize}px`, height: `${headerTokens.avatarSize}px`, borderRadius: `${headerTokens.avatarRadius}px`,
                                 background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%)',
                                 border: '2px solid rgba(255,255,255,0.2)',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                             }}>
-                                <div style={{ width: '24px', height: '24px' }} dangerouslySetInnerHTML={{ __html: widgetIcons.bot }} />
+                                <div style={{ width: `${headerTokens.svgSize}px`, height: `${headerTokens.svgSize}px` }} dangerouslySetInnerHTML={{ __html: widgetIcons.bot }} />
                             </div>
                             <div style={{
                                 position: 'absolute', bottom: 0, right: 0,
-                                width: '12px', height: '12px',
+                                width: layout.headerStyle === 'hero' ? '14px' : '12px',
+                                height: layout.headerStyle === 'hero' ? '14px' : '12px',
                                 background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                                 borderRadius: '50%',
                                 border: `2px solid ${isGradient(colors.headerBg) ? colors.primary : colors.headerBg}`,
@@ -210,15 +306,17 @@ function WidgetPreview({ config }: { config: ThemeConfig }) {
                         </div>
                         <div>
                             <div style={{
-                                fontSize: typography.headerFontSize, fontWeight: 700,
+                                fontSize: headerTitleSize, fontWeight: 700,
                                 letterSpacing: '-0.02em',
                                 textShadow: '0 1px 2px rgba(0,0,0,0.1)',
                             }}>
                                 Chat with us
                             </div>
-                            <div style={{ fontSize: '12px', opacity: 0.85, fontWeight: 500, marginTop: '3px' }}>
-                                Online
-                            </div>
+                            {headerTokens.showSubtitle && (
+                                <div style={{ fontSize: headerTokens.subtitleSize, opacity: 0.85, fontWeight: 500, marginTop: layout.headerStyle === 'hero' ? '5px' : '3px' }}>
+                                    Online
+                                </div>
+                            )}
                         </div>
                     </div>
                     <div style={{ display: 'flex', gap: '4px', position: 'relative', zIndex: 1 }}>
@@ -240,29 +338,27 @@ function WidgetPreview({ config }: { config: ThemeConfig }) {
 
                 {/* Messages */}
                 <div style={{
-                    padding: '20px',
+                    padding: density.messagesPad,
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '16px',
+                    gap: density.messagesGap,
                     minHeight: '240px',
                     background: colors.background,
                 }}>
                     {/* Bot welcome */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', maxWidth: '90%' }}>
-                        <BotAvatarIcon
-                            primary={colors.primary}
-                            primaryHover={colors.primaryHover}
-                            avatarBg={colors.botAvatarBg}
-                            iconColor={colors.botIconColor}
-                        />
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: showAvatars ? '10px' : 0, maxWidth: showAvatars ? '90%' : '78%' }}>
+                        {showAvatars && (
+                            <BotAvatarIcon
+                                primary={colors.primary}
+                                primaryHover={colors.primaryHover}
+                                avatarBg={colors.botAvatarBg}
+                                iconColor={colors.botIconColor}
+                                size={density.avatarSize}
+                                radius={avatarRadius}
+                            />
+                        )}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <div style={{
-                                background: colors.botMessageBg, color: colors.botMessageText,
-                                padding: '14px 18px', borderRadius: '18px', borderBottomLeftRadius: '6px',
-                                lineHeight: '1.55',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                                border: '1px solid rgba(0,0,0,0.06)',
-                            }}>
+                            <div style={botBubbleStyle}>
                                 Hello! How can I help you today?
                             </div>
                             <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 500 }}>{nowStr}</span>
@@ -270,20 +366,17 @@ function WidgetPreview({ config }: { config: ThemeConfig }) {
                     </div>
 
                     {/* User message */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', maxWidth: '90%', alignSelf: 'flex-end', flexDirection: 'row-reverse' }}>
-                        <UserAvatarIcon avatarBg={colors.userAvatarBg} iconColor={colors.userIconColor} />
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: showAvatars ? '10px' : 0, maxWidth: showAvatars ? '90%' : '78%', alignSelf: 'flex-end', flexDirection: 'row-reverse' }}>
+                        {showAvatars && (
+                            <UserAvatarIcon
+                                avatarBg={colors.userAvatarBg}
+                                iconColor={colors.userIconColor}
+                                size={density.avatarSize}
+                                radius={avatarRadius}
+                            />
+                        )}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                            <div style={{
-                                background: isGradient(colors.userMessageBg)
-                                    ? colors.userMessageBg
-                                    : `linear-gradient(135deg, ${colors.userMessageBg} 0%, color-mix(in srgb, ${colors.userMessageBg} 90%, black) 100%)`,
-                                color: colors.userMessageText,
-                                padding: '14px 18px', borderRadius: '18px', borderBottomRightRadius: '6px',
-                                lineHeight: '1.55',
-                                boxShadow: isGradient(colors.userMessageBg)
-                                    ? '0 2px 12px rgba(0, 0, 0, 0.15)'
-                                    : `0 2px 12px color-mix(in srgb, ${colors.userMessageBg} 30%, transparent)`,
-                            }}>
+                            <div style={userBubbleStyle}>
                                 Hi! I need some help
                             </div>
                             <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 500 }}>{nowStr}</span>
@@ -291,21 +384,19 @@ function WidgetPreview({ config }: { config: ThemeConfig }) {
                     </div>
 
                     {/* Bot reply */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', maxWidth: '90%' }}>
-                        <BotAvatarIcon
-                            primary={colors.primary}
-                            primaryHover={colors.primaryHover}
-                            avatarBg={colors.botAvatarBg}
-                            iconColor={colors.botIconColor}
-                        />
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: showAvatars ? '10px' : 0, maxWidth: showAvatars ? '90%' : '78%' }}>
+                        {showAvatars && (
+                            <BotAvatarIcon
+                                primary={colors.primary}
+                                primaryHover={colors.primaryHover}
+                                avatarBg={colors.botAvatarBg}
+                                iconColor={colors.botIconColor}
+                                size={density.avatarSize}
+                                radius={avatarRadius}
+                            />
+                        )}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <div style={{
-                                background: colors.botMessageBg, color: colors.botMessageText,
-                                padding: '14px 18px', borderRadius: '18px', borderBottomLeftRadius: '6px',
-                                lineHeight: '1.55',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                                border: `1px solid color-mix(in srgb, ${colors.inputBorder} 50%, transparent)`,
-                            }}>
+                            <div style={botBubbleStyle}>
                                 {"Sure! I'd be happy to assist you. 😊"}
                             </div>
                             <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 500 }}>{nowStr}</span>
@@ -339,7 +430,7 @@ function WidgetPreview({ config }: { config: ThemeConfig }) {
                         }}
                     />
                     <div style={{
-                        width: '44px', height: '44px', borderRadius: '14px', flexShrink: 0,
+                        width: `${density.sendSize}px`, height: `${density.sendSize}px`, borderRadius: '14px', flexShrink: 0,
                         background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryHover} 100%)`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         boxShadow: `0 4px 12px ${colors.primary}40`,
@@ -441,6 +532,19 @@ export default function ThemeEditor() {
         if (!config) return;
         setConfig({ ...config, name: value });
     };
+    const updateLayout = (key: string, value: string) => {
+        if (!config) return;
+        const current = {
+            bubbleStyle: config.layout?.bubbleStyle ?? 'tail',
+            density: config.layout?.density ?? 'cozy',
+            headerStyle: config.layout?.headerStyle ?? 'standard',
+            avatarShape: config.layout?.avatarShape ?? 'rounded',
+        };
+        setConfig({
+            ...config,
+            layout: { ...current, [key]: value } as ThemeConfig['layout'],
+        });
+    };
 
     if (isLoading) {
         return (
@@ -504,6 +608,12 @@ export default function ThemeEditor() {
                         </button>
                     </div>
                 </div>
+
+                {saveMutation.isError && (
+                    <div className="mb-6 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg">
+                        {saveMutation.error instanceof Error ? saveMutation.error.message : 'Failed to save theme'}
+                    </div>
+                )}
 
                 {/* Main Layout: Editor + Preview */}
                 <div className="flex gap-8">
@@ -618,6 +728,52 @@ export default function ThemeEditor() {
                                     { value: '72px', label: '72px - Extra Large' },
                                 ]}
                                 onChange={(v) => updateDimensions('buttonSize', v)}
+                            />
+                        </Section>
+
+                        <Section title="Layout">
+                            <p className="text-xs text-gray-400 -mt-1 mb-2">Structural variations independent of color. Changes apply instantly to the preview.</p>
+                            <SelectField
+                                label="Bubble Style"
+                                value={config.layout?.bubbleStyle ?? 'tail'}
+                                options={[
+                                    { value: 'tail', label: 'Tail — asymmetric corner (default)' },
+                                    { value: 'rounded', label: 'Rounded — symmetric, no tail' },
+                                    { value: 'sharp', label: 'Sharp — small radius, professional' },
+                                    { value: 'card', label: 'Card — flat with border' },
+                                ]}
+                                onChange={(v) => updateLayout('bubbleStyle', v)}
+                            />
+                            <SelectField
+                                label="Density"
+                                value={config.layout?.density ?? 'cozy'}
+                                options={[
+                                    { value: 'compact', label: 'Compact — info-dense' },
+                                    { value: 'cozy', label: 'Cozy — default' },
+                                    { value: 'comfortable', label: 'Comfortable — generous' },
+                                ]}
+                                onChange={(v) => updateLayout('density', v)}
+                            />
+                            <SelectField
+                                label="Header Style"
+                                value={config.layout?.headerStyle ?? 'standard'}
+                                options={[
+                                    { value: 'standard', label: 'Standard — default' },
+                                    { value: 'compact', label: 'Compact — thin, no subtitle' },
+                                    { value: 'hero', label: 'Hero — taller, larger avatar' },
+                                ]}
+                                onChange={(v) => updateLayout('headerStyle', v)}
+                            />
+                            <SelectField
+                                label="Avatar Shape"
+                                value={config.layout?.avatarShape ?? 'rounded'}
+                                options={[
+                                    { value: 'circle', label: 'Circle' },
+                                    { value: 'rounded', label: 'Rounded — default' },
+                                    { value: 'square', label: 'Square' },
+                                    { value: 'none', label: 'None — hide message avatars' },
+                                ]}
+                                onChange={(v) => updateLayout('avatarShape', v)}
                             />
                         </Section>
 
